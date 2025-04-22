@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "233962587677",
+    "project_id": "vyra-efe2e",
+    "storage_bucket": "vyra-efe2e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:233962587677:android:378948cbf60a46063c28f4",
+        "android_client_info": {
+          "package_name": "com.example.vyra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDG-DiXbTYxlnamDT_Cbo9XnvcMHk_49o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
