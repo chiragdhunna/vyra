@@ -56,6 +56,43 @@ Vyra is a beautifully crafted AI-powered mobile companion designed to make every
 | **Face/Object Detection** | Google ML Kit / Firebase ML         |
 | **Storage**               | Hive / SQLite / Firebase            |
 | **State Mgmt**            | Riverpod / BLoC                     |
+| **Notifications**         | flutter_local_notifications         |
+| **Camera**                | camera, google_mlkit                |
+| **Wake Word**             | Porcupine / Snowboy (native bridge) |
+
+---
+
+## 🎨 Architecture & Modules
+
+### 🎭 Animated Avatar (Vyra's Face)
+
+- Built using `rive` or `lottie`
+- Emotions: happy, thinking, sad, excited, etc.
+- Sentiment-mapped responses via OpenAI or local parsing
+
+### 🧠 AI Engine (Chat Layer)
+
+- GPT-4/GPT-4o via OpenAI API
+- Streaming conversation + emotion tagging
+- Custom personality via system prompt
+
+### 🗣️ Voice Input / Output
+
+- `speech_to_text` for capturing voice
+- `flutter_tts` or ElevenLabs API for emotional voice feedback
+- (Optional) wake word activation via `porcupine` or native call
+
+### 📸 Vision Features
+
+- `google_mlkit_face_detection` & `object_detection`
+- Real-time camera access via `camera`
+- Fun behavior triggers based on detected face or object
+
+### 🛠️ Assistant Tools
+
+- Local notifications for reminders via `flutter_local_notifications`
+- Weather via OpenWeatherMap API
+- Daily quotes, facts, jokes via public APIs
 
 ---
 
@@ -110,12 +147,6 @@ Make sure to:
 Pull requests are welcome. For major changes, please open an issue first.
 
 If you're interested in contributing animations, voice packs, or new assistant modules—reach out!
-
----
-
-## 📄 License
-
-MIT License © 2024 Vyra Team
 
 ---
 
