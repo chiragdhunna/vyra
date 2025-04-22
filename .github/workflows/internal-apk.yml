@@ -1,4 +1,4 @@
-name: Internal APK Build
+name: Internal APK Build (Fastlane)
 
 on:
   push:
@@ -9,12 +9,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+
+      - name: Setup Ruby + Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+
+      - name: Install Fastlane Plugins
+        run: |
+          gem install bundler
+          bundle install || bundle init && echo 'gem "fastlane"' >> Gemfile && bundle install
+          bundle exec fastlane add_plugin firebase_app_distribution || true
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.19.0"
-      - run: flutter pub get
-      - run: flutter build apk --flavor staging -t lib/main_staging.dart
-      - uses: actions/upload-artifact@v4
+
+      - name: Run Fastlane deploy lane
+        run: |
+          cd android
+          NAME=staging fastlane android deploy
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: vyra-staging-apk
           path: build/app/outputs/apk/staging/release/app-staging-release.apk
