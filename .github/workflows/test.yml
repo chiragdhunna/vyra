@@ -1,0 +1,19 @@
+name: Test & Analyze
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.29.3" # ✅ This supports Dart 3.7.2
+      - run: flutter config --no-analytics --no-cli-animations
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
