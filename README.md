@@ -114,6 +114,62 @@ lib/
 
 ---
 
+## 🏗️ Flavors & Environments
+
+Vyra supports multiple build flavors for different environments: **dev**, **staging**, and **prod**.
+
+### Dart Entrypoints
+
+- `lib/main_dev.dart` &rarr; Development environment
+- `lib/main_staging.dart` &rarr; Staging environment
+- `lib/main_prod.dart` &rarr; Production environment
+
+### Android Setup
+
+Product flavors are defined in [`android/app/build.gradle.kts`](android/app/build.gradle.kts):
+
+```kotlin
+flavorDimensions += "env"
+productFlavors {
+    create("dev") {
+        dimension = "env"
+        applicationIdSuffix = ".dev"
+        versionNameSuffix = "-dev"
+    }
+    create("staging") {
+        dimension = "env"
+        applicationIdSuffix = ".staging"
+        versionNameSuffix = "-staging"
+    }
+    create("prod") {
+        dimension = "env"
+        // No suffix for prod
+    }
+}
+```
+
+### Running Flavors
+
+Use the following commands to run a specific flavor:
+
+```bash
+# Development
+flutter run --flavor dev -t lib/main_dev.dart
+
+# Staging
+flutter run --flavor staging -t lib/main_staging.dart
+
+# Production
+flutter run --flavor prod -t lib/main_prod.dart
+```
+
+### iOS Setup
+
+- Duplicate schemes in Xcode for each flavor (dev, staging, prod).
+- Set the correct Dart entrypoint for each scheme.
+
+---
+
 ## 📦 Installation
 
 ```bash
