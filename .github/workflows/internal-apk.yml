@@ -10,25 +10,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Ruby + Fastlane
+      - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.1"
+          bundler-cache: true # Enable caching for gems
+
+      - name: Configure Bundler
+        run: |
+          bundle config path vendor/bundle
+          bundle config deployment true
+
+      - name: Install dependencies
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Setup Fastlane
+        run: |
+          # Create fastlane directory if missing
+          mkdir -p ./android/fastlane
+          # Initialize only if not already initialized
+          if [ ! -f ./android/fastlane/Fastfile ]; then
+            cd android
+            bundle exec fastlane init
+            cd ..
+          fi
 
       - name: Install Fastlane Plugins
         run: |
-          gem install bundler
-          bundle install || bundle init && echo 'gem "fastlane"' >> Gemfile && bundle install
+          cd android
           bundle exec fastlane add_plugin firebase_app_distribution
+          cd ..
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.19.0"
-          channel: "stable" # Explicitly specify channel
+          channel: "stable"
+          cache: true # Enable caching for Flutter dependencies
 
       - name: Install Flutter Dependencies
         run: flutter pub get
+
+      - name: Setup Firebase Token
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          echo "FIREBASE_TOKEN=$FIREBASE_TOKEN" >> $GITHUB_ENV
 
       - name: Run Fastlane prod lane
         run: |
