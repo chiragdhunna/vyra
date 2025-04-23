@@ -10,11 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Use Flutter 3.29.2 to match the local setup
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.19.0"
+          flutter-version: "3.29.2" # Updated to match your local Flutter version
+
+      # Install Flutter dependencies
       - run: flutter pub get
+
+      # Build the APK using the production flavor
       - run: flutter build apk --flavor prod -t lib/main_prod.dart
+
+      # Upload the APK artifact
       - uses: actions/upload-artifact@v4
         with:
           name: vyra-prod-apk
