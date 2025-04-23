@@ -1,5 +1,9 @@
 # 🤖 Vyra - Your Personal AI Assistant App
 
+<p align="center">
+  <img src="assets/vyra_logo.png" alt="Vyra Logo" width="250"/>
+</p>
+
 Vyra is a beautifully crafted AI-powered mobile companion designed to make everyday tasks delightful. Combining conversational intelligence, expressive visuals, voice interaction, and real-world awareness, Vyra brings an emotionally engaging assistant directly to your smartphone.
 
 ---
