@@ -115,3 +115,6 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+.env
+# Ignore Firebase configuration file in lib folder
+lib/firebase_options.dart
