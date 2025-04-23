@@ -27,3 +27,11 @@ jobs:
         with:
           name: vyra-prod-apk
           path: build/app/outputs/apk/prod/release/app-prod-release.apk
+
+      # Upload the APK to the GitHub Release
+      - name: Upload APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/app/outputs/apk/prod/release/app-prod-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
