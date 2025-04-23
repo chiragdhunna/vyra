@@ -40,11 +40,17 @@ platform :android do
   lane :prod do
     sh("cd ../.. && flutter pub get")
     sh("flutter build apk --flavor prod -t lib/main_prod.dart")
+
+    # Get the latest commit message
+    changelog = sh("git log -1 --pretty=%B").strip
+
     firebase_app_distribution(
       app: "1:233962587677:android:378948cbf60a46063c28f4",
       apk_path: "../build/app/outputs/flutter-apk/app-prod-release.apk",
-      testers: "chiragdhunna2468@gmail.com"
+      testers: "chiragdhunna2468@gmail.com",
+      release_notes: changelog # Pass commit message as release notes
     )
   end
+
   
 end
