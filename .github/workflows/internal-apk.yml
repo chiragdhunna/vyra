@@ -19,20 +19,24 @@ jobs:
         run: |
           gem install bundler
           bundle install || bundle init && echo 'gem "fastlane"' >> Gemfile && bundle install
-          bundle exec fastlane add_plugin firebase_app_distribution || true
+          bundle exec fastlane add_plugin firebase_app_distribution
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.19.0"
+          channel: "stable" # Explicitly specify channel
 
-      - name: Run Fastlane deploy lane
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Run Fastlane prod lane
         run: |
           cd android
-          NAME=staging fastlane android deploy
+          bundle exec fastlane android prod
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vyra-staging-apk
-          path: build/app/outputs/apk/staging/release/app-staging-release.apk
+          name: vyra-prod-apk
+          path: build/app/outputs/flutter-apk/app-prod-release.apk
