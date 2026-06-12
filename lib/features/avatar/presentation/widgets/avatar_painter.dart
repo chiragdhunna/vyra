@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../providers/avatar_provider.dart';
+import '../../providers/avatar_provider.dart';
 
 /// Numeric description of a facial expression. Every emotion maps to one of
 /// these, and the painter renders the smoothly interpolated value between the
