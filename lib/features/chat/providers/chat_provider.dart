@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../../services/ai/gemini_service.dart';
 import '../../../services/service_providers.dart';
 import '../../avatar/models/avatar_emotion.dart';
 import '../../avatar/providers/avatar_provider.dart';
+import '../../voice/providers/voice_provider.dart';
 import '../data/models/chat_message.dart';
 
 final geminiServiceProvider =
@@ -92,10 +95,13 @@ class ChatController extends StateNotifier<ChatState> {
       messages: [...state.messages, vyraMsg],
       isResponding: false,
     );
-    // Default: react with the emotion and return to idle. The voice layer
-    // (when enabled) overrides activity to "speaking" while TTS plays.
+    // React with the emotion; if TTS is on, the voice layer then flips the
+    // avatar to "speaking" while it reads the reply aloud.
     _avatar.react(emotion, activity: AvatarActivity.idle);
     _persist();
+    if (!reply.isError) {
+      unawaited(_ref.read(voiceControllerProvider.notifier).speak(reply.text));
+    }
   }
 
   void clear() {
