@@ -45,5 +45,14 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Vyra permission usage descriptions -->
+	<key>NSCameraUsageDescription</key>
+	<string>Vyra uses the camera to see you and react to your expressions. All vision processing stays on your device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Vyra uses the microphone so you can talk to her hands-free.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Vyra uses speech recognition to understand what you say.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Vyra uses your location to show you local weather.</string>
 </dict>
 </plist>
