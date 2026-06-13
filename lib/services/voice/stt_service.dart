@@ -52,7 +52,11 @@ class SttService {
       onSoundLevelChange: onLevel,
       listenOptions: SpeechListenOptions(
         partialResults: true,
-        cancelOnError: true,
+        cancelOnError: false,
+        // confirmation mode reliably emits a FINAL result when the speaker
+        // pauses (dictation mode often only streams partials and never
+        // finalizes, which left speech unsent). The VoiceController also
+        // flushes the last partial on session-end as a safety net.
         listenMode: ListenMode.confirmation,
         listenFor: const Duration(seconds: 30),
         pauseFor: const Duration(seconds: 3),

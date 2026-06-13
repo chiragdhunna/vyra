@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../avatar/models/avatar_emotion.dart';
@@ -14,11 +15,13 @@ import '../../../voice/presentation/widgets/voice_wave.dart';
 import '../../../voice/providers/voice_provider.dart';
 import '../../providers/vision_provider.dart';
 
-/// "Live" companion mode — fully hands-free. Only Vyra's animated face shows;
-/// the front camera stays on for awareness (never displayed). The mic listens
-/// continuously: it auto-pauses while she speaks or thinks (so she never hears
-/// herself) and resumes the moment she's done. She also talks first and keeps
-/// the conversation going. Tap the mic to mute / unmute hands-free.
+/// "Live" companion mode — turn-based hands-free.
+///
+/// Native speech recognizers can't truly stay on forever (they endpoint per
+/// utterance), so instead of brute-force restarting (which caused the mic to
+/// flap on/off) we take turns: the mic opens for the user's turn, ends when
+/// they pause, Vyra replies, then the mic auto-reopens for the next turn. After
+/// a lull she re-engages a few times, then waits. Tap the mic to pause/resume.
 class VisionScreen extends ConsumerStatefulWidget {
   const VisionScreen({super.key});
 
@@ -26,14 +29,21 @@ class VisionScreen extends ConsumerStatefulWidget {
   ConsumerState<VisionScreen> createState() => _VisionScreenState();
 }
 
-class _VisionScreenState extends ConsumerState<VisionScreen> {
+class _VisionScreenState extends ConsumerState<VisionScreen>
+    with WidgetsBindingObserver {
   final math.Random _rng = math.Random();
-  String _caption = "Hey! I'm right here — just start talking.";
-  bool _handsFree = true;
+  String _caption = "Hey! I'm right here — let's talk.";
+  bool _handsFree = true; // false = paused/muted by the user
+  bool _foreground = true;
   bool _spoke = false;
+  int _consecutiveNudges = 0;
   DateTime _lastSmileReact = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastInteraction = DateTime.now();
+  DateTime _lastListenStart = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _tick;
+
+  VisionController? _visionCtrl;
+  VoiceController? _voiceCtrl;
 
   static const _greetings = [
     'Hey, there you are! 😊',
@@ -54,56 +64,82 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     "I'm curious — what's something you're into these days?",
     'Got anything fun coming up?',
     'Want to hear a joke, or shall we just chat?',
-    'If you could do anything right now, what would it be?',
   ];
+
+  bool get _ttsOn => ref.read(settingsProvider).ttsEnabled;
 
   @override
   void initState() {
     super.initState();
+    _visionCtrl = ref.read(visionControllerProvider.notifier);
+    _voiceCtrl = ref.read(voiceControllerProvider.notifier);
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(visionControllerProvider.notifier).start(); // awareness only
+      _visionCtrl?.start(); // awareness only — preview never shown
       ref.read(avatarControllerProvider.notifier).react(AvatarEmotion.caring);
-
-      // Break the ice herself, in case the camera doesn't spot a face.
-      Future.delayed(const Duration(seconds: 4), () {
-        if (mounted && !_spoke) _speakOpener();
-      });
-      // Drives continuous listening + gentle re-engagement.
-      _tick = Timer.periodic(const Duration(milliseconds: 800), (_) => _onTick());
+      // Make her break the ice almost immediately (then she opens the mic).
+      _lastInteraction = DateTime.now().subtract(const Duration(seconds: 13));
+      _tick = Timer.periodic(const Duration(seconds: 2), (_) => _onTick());
     });
   }
 
   @override
   void dispose() {
     _tick?.cancel();
-    ref.read(voiceControllerProvider.notifier).stopListening();
-    ref.read(visionControllerProvider.notifier).stop();
+    WidgetsBinding.instance.removeObserver(this);
+    _voiceCtrl?.stopListening();
+    _visionCtrl?.stop();
     super.dispose();
   }
 
-  void _onTick() {
-    if (!mounted) return;
-    final voice = ref.read(voiceControllerProvider);
-    final responding = ref.read(chatControllerProvider).isResponding;
-
-    // She's neither speaking nor thinking right now.
-    final free = !voice.isSpeaking && !responding;
-
-    // Re-engage after a stretch of silence — a friend doesn't just go quiet.
-    if (free &&
-        DateTime.now().difference(_lastInteraction) >=
-            const Duration(seconds: 22)) {
-      _speakOpener();
-      return;
-    }
-
-    // Keep the mic open whenever it should be.
-    if (_handsFree && free && voice.sttAvailable && !voice.isListening) {
-      ref.read(voiceControllerProvider.notifier).startListening(onFinal: _onHeard);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _foreground = true;
+      if (mounted) _visionCtrl?.start();
+    } else {
+      _foreground = false;
+      _voiceCtrl?.stopListening();
+      _visionCtrl?.stop();
     }
   }
 
+  // Proactive re-engagement only — NOT a listening restart (that's what caused
+  // the flapping). After a lull she asks something, which then reopens the mic.
+  void _onTick() {
+    if (!mounted || !_foreground || !_handsFree) return;
+    final voice = ref.read(voiceControllerProvider);
+    final responding = ref.read(chatControllerProvider).isResponding;
+    if (voice.isListening || voice.isSpeaking || responding) return;
+    if (_consecutiveNudges >= 3) return; // she's said enough; wait for the user
+    if (DateTime.now().difference(_lastInteraction) >=
+        const Duration(seconds: 15)) {
+      _consecutiveNudges++;
+      _speakOpener();
+    }
+  }
+
+  // Open the mic for the user's turn (guarded + throttled).
+  void _armListening() {
+    if (!mounted || !_handsFree || !_foreground) return;
+    final voice = ref.read(voiceControllerProvider);
+    final responding = ref.read(chatControllerProvider).isResponding;
+    if (voice.isListening ||
+        voice.isSpeaking ||
+        responding ||
+        !voice.sttAvailable) {
+      return;
+    }
+    if (DateTime.now().difference(_lastListenStart) <
+        const Duration(milliseconds: 800)) {
+      return;
+    }
+    _lastListenStart = DateTime.now();
+    ref.read(voiceControllerProvider.notifier).startListening(onFinal: _onHeard);
+  }
+
   void _onHeard(String text) {
+    _consecutiveNudges = 0;
     _lastInteraction = DateTime.now();
     ref.read(chatControllerProvider.notifier).send(text);
   }
@@ -122,12 +158,16 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     _lastInteraction = DateTime.now();
     ref.read(avatarControllerProvider.notifier).react(emotion);
     ref.read(voiceControllerProvider.notifier).speak(line);
+    // If TTS is off there's no "speak complete" event to reopen the mic.
+    if (!_ttsOn) {
+      Future.delayed(const Duration(milliseconds: 700), _armListening);
+    }
   }
 
   void _onPresenceChange(VisionState? prev, VisionState next) {
     final wasPresent = (prev?.faceCount ?? 0) > 0;
     final isPresent = next.faceCount > 0;
-    if (!wasPresent && isPresent) {
+    if (!wasPresent && isPresent && !_spoke) {
       _say(_greetings[_rng.nextInt(_greetings.length)], AvatarEmotion.happy);
       return;
     }
@@ -140,24 +180,39 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     }
   }
 
-  void _toggleHandsFree() {
-    setState(() => _handsFree = !_handsFree);
-    if (!_handsFree) {
+  // When Vyra finishes speaking, it's the user's turn → reopen the mic.
+  void _onVoiceChange(VoiceState? prev, VoiceState next) {
+    if ((prev?.isSpeaking ?? false) && !next.isSpeaking) {
+      _armListening();
+    }
+  }
+
+  void _toggleMic() {
+    if (_handsFree) {
+      setState(() => _handsFree = false);
       ref.read(voiceControllerProvider.notifier).stopListening();
     } else {
+      setState(() => _handsFree = true);
+      _consecutiveNudges = 0;
       _lastInteraction = DateTime.now();
+      _armListening();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen<VisionState>(visionControllerProvider, _onPresenceChange);
+    ref.listen<VoiceState>(voiceControllerProvider, _onVoiceChange);
     ref.listen(chatControllerProvider.select((s) => s.messages.length), (_, __) {
       final msgs = ref.read(chatControllerProvider).messages;
       for (final m in msgs.reversed) {
         if (!m.isUser) {
           _lastInteraction = DateTime.now();
           if (mounted) setState(() => _caption = m.text);
+          // With TTS off, reopen the mic after her (silent) reply.
+          if (!_ttsOn) {
+            Future.delayed(const Duration(milliseconds: 600), _armListening);
+          }
           break;
         }
       }
@@ -165,23 +220,31 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
 
     final vision = ref.watch(visionControllerProvider);
     final voice = ref.watch(voiceControllerProvider);
+    final responding =
+        ref.watch(chatControllerProvider.select((s) => s.isResponding));
     final amplitude =
         ref.watch(avatarControllerProvider.select((s) => s.amplitude));
 
     final seesYou = vision.faceCount > 0;
-    final status = vision.error != null
-        ? "I can't see, but I'm all ears"
-        : seesYou
-            ? (vision.smileProbability > 0.6
-                ? 'Love that smile 😊'
-                : 'I can see you 👀')
-            : "I'm right here";
+    final status = !_handsFree
+        ? 'Paused'
+        : voice.isListening
+            ? 'Listening…'
+            : voice.isSpeaking
+                ? 'Speaking…'
+                : responding
+                    ? 'Thinking…'
+                    : (seesYou ? 'I can see you 👀' : "I'm here");
 
     final hint = !_handsFree
-        ? 'Muted · tap to go hands-free'
+        ? 'Tap to talk hands-free'
         : voice.isListening
-            ? 'Listening… just talk'
-            : 'Hands-free on · tap to mute';
+            ? 'Go ahead, I’m listening…'
+            : voice.isSpeaking
+                ? 'Speaking…'
+                : responding
+                    ? 'Thinking…'
+                    : 'Tap if I don’t catch you';
 
     return Scaffold(
       body: Container(
@@ -204,12 +267,12 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
               const Spacer(),
               const VyraAvatarLive(size: 280),
               const SizedBox(height: 10),
-              _StatusChip(text: status, active: seesYou),
+              _StatusChip(text: status, active: voice.isListening || seesYou),
               const SizedBox(height: 18),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _CaptionBox(
-                  listening: _handsFree && voice.isListening,
+                  listening: voice.isListening,
                   partial: voice.partialText,
                   caption: _caption,
                   amplitude: amplitude,
@@ -219,7 +282,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
               _MicButton(
                 handsFree: _handsFree,
                 listening: voice.isListening,
-                onTap: _toggleHandsFree,
+                onTap: _toggleMic,
               ),
               const SizedBox(height: 12),
               Text(hint, style: AppTextStyles.caption),
@@ -335,7 +398,7 @@ class _MicButton extends StatelessWidget {
               ? [
                   BoxShadow(
                     color: accent.withValues(alpha: 0.45),
-                    blurRadius: listening ? 30 : 18,
+                    blurRadius: listening ? 30 : 16,
                     spreadRadius: listening ? 4 : 1,
                   ),
                 ]
