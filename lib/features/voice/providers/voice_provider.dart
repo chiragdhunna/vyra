@@ -50,6 +50,8 @@ class VoiceController extends StateNotifier<VoiceState> {
 
   final Ref _ref;
   void Function(String)? _onFinal;
+  String _heard = ''; // latest recognized text this session
+  bool _delivered = true; // whether _heard was already sent (or discarded)
   Timer? _speakPulse;
   final math.Random _rng = math.Random();
 
@@ -65,9 +67,9 @@ class VoiceController extends StateNotifier<VoiceState> {
     );
     final available = await _stt.init(
       onStatus: (status) {
-        if (status == 'done' || status == 'notListening') _finishListening();
+        if (status == 'done' || status == 'notListening') _endSession();
       },
-      onError: (_) => _finishListening(),
+      onError: (_) => _endSession(),
     );
     state = state.copyWith(sttAvailable: available);
   }
@@ -85,14 +87,19 @@ class VoiceController extends StateNotifier<VoiceState> {
     if (!state.sttAvailable || state.isListening) return;
     await _tts.stop();
     _onFinal = onFinal;
+    _heard = '';
+    _delivered = false;
     state = state.copyWith(isListening: true, partialText: '');
     _avatar.setActivity(AvatarActivity.listening);
     await _stt.listen(
-      onPartial: (txt) => state = state.copyWith(partialText: txt),
+      onPartial: (txt) {
+        _heard = txt;
+        state = state.copyWith(partialText: txt);
+      },
       onFinal: (txt) {
-        final trimmed = txt.trim();
+        if (txt.trim().isNotEmpty) _heard = txt;
+        _deliverHeard();
         _finishListening();
-        if (trimmed.isNotEmpty) _onFinal?.call(trimmed);
       },
       onLevel: (level) =>
           _avatar.setAmplitude((level.abs() / 10).clamp(0.05, 1.0).toDouble()),
@@ -100,6 +107,8 @@ class VoiceController extends StateNotifier<VoiceState> {
   }
 
   Future<void> stopListening() async {
+    // Explicit stop (mute, or before speaking): discard any in-progress partial.
+    _delivered = true;
     await _stt.stop();
     _finishListening();
   }
@@ -108,6 +117,20 @@ class VoiceController extends StateNotifier<VoiceState> {
     if (!state.isListening) return;
     state = state.copyWith(isListening: false, partialText: '');
     _avatar.idle();
+  }
+
+  // If a listen session ends without a FINAL result (common on Android), still
+  // deliver the last recognized partial so the user's speech is never dropped.
+  void _endSession() {
+    _deliverHeard();
+    _finishListening();
+  }
+
+  void _deliverHeard() {
+    if (_delivered) return;
+    _delivered = true;
+    final text = _heard.trim();
+    if (text.isNotEmpty) _onFinal?.call(text);
   }
 
   // --- Speaking ---
