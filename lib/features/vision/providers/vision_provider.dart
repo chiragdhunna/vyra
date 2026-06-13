@@ -78,6 +78,11 @@ class VisionController extends StateNotifier<VisionState> {
   CameraLensDirection _lens = CameraLensDirection.front;
   AvatarEmotion _lastEmotion = AvatarEmotion.neutral;
 
+  // Incremented on every start()/stop(); lets an in-flight async start() detect
+  // that it was superseded (e.g. the screen was left) and tear its camera down
+  // instead of leaking it.
+  int _session = 0;
+
   CameraController? get cameraController => _camera;
   FaceDetectionService get _service =>
       _ref.read(faceDetectionServiceProvider);
@@ -86,9 +91,12 @@ class VisionController extends StateNotifier<VisionState> {
 
   Future<void> start() async {
     if (state.active || state.initializing) return;
+    final session = ++_session;
     state = state.copyWith(initializing: true, clearError: true);
+    CameraController? controller;
     try {
       final cameras = await availableCameras();
+      if (session != _session) return; // superseded by stop()/start()
       if (cameras.isEmpty) {
         state = state.copyWith(
             initializing: false, error: 'No camera available on this device.');
@@ -99,20 +107,29 @@ class VisionController extends StateNotifier<VisionState> {
         orElse: () => cameras.first,
       );
       _lens = desc.lensDirection;
-      final controller = CameraController(
+      controller = CameraController(
         desc,
         ResolutionPreset.medium,
         enableAudio: false,
         imageFormatGroup:
             Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
       );
-      _camera = controller;
       await controller.initialize();
-      if (!mounted) {
+      // Bail out (and release) if we left the screen while initializing.
+      if (session != _session || !mounted) {
         await controller.dispose();
         return;
       }
       await controller.startImageStream(_process);
+      if (session != _session) {
+        try {
+          await controller.stopImageStream();
+        } catch (_) {}
+        await controller.dispose();
+        return;
+      }
+      // Only now does the controller become the live camera.
+      _camera = controller;
       state = state.copyWith(
         initializing: false,
         active: true,
@@ -121,10 +138,15 @@ class VisionController extends StateNotifier<VisionState> {
       );
     } catch (e, st) {
       AppLogger.e('Camera start failed', error: e, stackTrace: st, tag: 'Vision');
-      state = state.copyWith(
-        initializing: false,
-        error: 'Camera unavailable. Please grant camera permission.',
-      );
+      try {
+        await controller?.dispose();
+      } catch (_) {}
+      if (session == _session) {
+        state = state.copyWith(
+          initializing: false,
+          error: 'Camera unavailable. Please grant camera permission.',
+        );
+      }
     }
   }
 
@@ -175,6 +197,7 @@ class VisionController extends StateNotifier<VisionState> {
   }
 
   Future<void> stop() async {
+    _session++; // invalidate any in-flight start()
     final cam = _camera;
     _camera = null;
     if (mounted) {
