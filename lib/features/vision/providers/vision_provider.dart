@@ -186,13 +186,20 @@ class VisionController extends StateNotifier<VisionState> {
       );
     }
     _avatar.react(AvatarEmotion.neutral, activity: AvatarActivity.idle);
+    if (cam == null) return;
+    // Stop the image stream and release the camera INDEPENDENTLY: if
+    // stopImageStream throws (a common race when the screen is torn down),
+    // dispose() must still run — that's what frees the hardware and clears the
+    // "camera in use" indicator.
     try {
-      if (cam != null) {
-        if (cam.value.isStreamingImages) await cam.stopImageStream();
-        await cam.dispose();
-      }
+      if (cam.value.isStreamingImages) await cam.stopImageStream();
     } catch (e) {
-      AppLogger.w('Camera stop error: $e', tag: 'Vision');
+      AppLogger.w('stopImageStream failed: $e', tag: 'Vision');
+    }
+    try {
+      await cam.dispose();
+    } catch (e) {
+      AppLogger.w('camera dispose failed: $e', tag: 'Vision');
     }
   }
 
