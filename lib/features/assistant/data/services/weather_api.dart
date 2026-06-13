@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/api_constants.dart';
@@ -55,15 +56,30 @@ class WeatherApi {
   Future<Position> _resolvePosition() async {
     final serviceOn = await Geolocator.isLocationServiceEnabled();
     if (!serviceOn) {
-      throw const WeatherException('Turn on location services for weather.');
+      throw const WeatherException(
+        'Turn on location services for live weather.',
+      );
     }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+
+    // Request location at runtime. The manifest declares the permission, but
+    // Android still needs the user's consent — we surface the system dialog
+    // here with permission_handler (the same way the mic prompt appears when
+    // you start talking). Geolocator's own requestPermission() could silently
+    // no-op once Android has marked the permission "denied forever", which is
+    // why the prompt never appeared before (issue #10).
+    var status = await Permission.location.status;
+    if (status.isDenied || status.isRestricted) {
+      status = await Permission.location.request();
     }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw const WeatherException('Location permission is needed for weather.');
+    if (status.isPermanentlyDenied) {
+      throw const WeatherException(
+        'Location is blocked for Vyra. Enable it in system Settings, then retry.',
+      );
+    }
+    if (!status.isGranted) {
+      throw const WeatherException(
+        'Location permission is needed for weather.',
+      );
     }
     // Without a bound, getCurrentPosition can hang forever when the device
     // never gets a fix (common on emulators and indoors) — the root cause of
