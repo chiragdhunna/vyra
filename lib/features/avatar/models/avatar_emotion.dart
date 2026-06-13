@@ -11,7 +11,8 @@ enum AvatarEmotion {
   thinking,
   sad,
   surprised,
-  caring;
+  caring,
+  cry;
 
   /// Parses an emotion tag string (case-insensitive) into an [AvatarEmotion],
   /// falling back to [neutral] for anything unrecognized.
@@ -33,6 +34,7 @@ enum AvatarEmotion {
         AvatarEmotion.sad => const Color(0xFF6C7DD8),
         AvatarEmotion.surprised => const Color(0xFFFFC857),
         AvatarEmotion.caring => const Color(0xFFFF8FB1),
+        AvatarEmotion.cry => const Color(0xFF4F6BD8),
       };
 
   /// Secondary color blended into the orb gradient + particles.
@@ -44,6 +46,7 @@ enum AvatarEmotion {
         AvatarEmotion.sad => const Color(0xFF8FA0E0),
         AvatarEmotion.surprised => const Color(0xFFFF6B6B),
         AvatarEmotion.caring => const Color(0xFFFFC2D6),
+        AvatarEmotion.cry => const Color(0xFF8FB3FF),
       };
 
   String get label => name[0].toUpperCase() + name.substring(1);
@@ -56,5 +59,6 @@ enum AvatarEmotion {
         AvatarEmotion.sad => '😔',
         AvatarEmotion.surprised => '😮',
         AvatarEmotion.caring => '🥰',
+        AvatarEmotion.cry => '😭',
       };
 }

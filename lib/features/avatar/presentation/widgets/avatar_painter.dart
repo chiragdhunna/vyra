@@ -18,6 +18,7 @@ class FaceParams {
   final double mouthWidth; // 0..1 mouth width
   final double pupilY; // -1 look up .. +1 look down
   final double glow; // 0.6..1.3 aura intensity
+  final double tears; // 0..1 crying-tears intensity
 
   const FaceParams({
     required this.eyeOpen,
@@ -29,6 +30,7 @@ class FaceParams {
     required this.mouthWidth,
     required this.pupilY,
     required this.glow,
+    this.tears = 0.0,
   });
 
   static double _l(double a, double b, double t) => a + (b - a) * t;
@@ -43,6 +45,7 @@ class FaceParams {
         mouthWidth: _l(a.mouthWidth, b.mouthWidth, t),
         pupilY: _l(a.pupilY, b.pupilY, t),
         glow: _l(a.glow, b.glow, t),
+        tears: _l(a.tears, b.tears, t),
       );
 
   static const Map<String, FaceParams> _byEmotion = {
@@ -67,6 +70,10 @@ class FaceParams {
     'caring': FaceParams(
         eyeOpen: 0.85, eyeSmile: 0.5, browTilt: 0.2, browRaise: 0.1,
         mouthCurve: 0.6, mouthOpen: 0.1, mouthWidth: 0.7, pupilY: 0.05, glow: 1.0),
+    'cry': FaceParams(
+        eyeOpen: 0.55, eyeSmile: 0.0, browTilt: 0.95, browRaise: 0.0,
+        mouthCurve: -0.8, mouthOpen: 0.45, mouthWidth: 0.55, pupilY: 0.35,
+        glow: 0.6, tears: 1.0),
   };
 
   static FaceParams forEmotion(String name) =>
@@ -220,6 +227,37 @@ class AvatarPainter extends CustomPainter {
     _drawEye(canvas, leftEye, r, dark);
     _drawEye(canvas, rightEye, r, dark);
     _drawMouth(canvas, center, r, dark);
+    if (face.tears > 0.01) {
+      _drawTear(canvas, leftEye, r, seed: 0.0);
+      _drawTear(canvas, rightEye, r, seed: 0.5);
+    }
+  }
+
+  // Falling tear-drops for the "cry" emotion (two staggered drops per eye).
+  void _drawTear(Canvas canvas, Offset eye, double r, {required double seed}) {
+    final ew = r * 0.15;
+    for (var i = 0; i < 2; i++) {
+      final phase = (time * 0.5 + seed + i * 0.5) % 1.0;
+      final x = eye.dx + ew * 0.1;
+      final y = eye.dy + ew * 0.6 + phase * r * 0.55;
+      final alpha = (face.tears * (1 - phase)).clamp(0.0, 1.0).toDouble();
+      if (alpha <= 0.02) continue;
+      final paint = Paint()
+        ..color = const Color(0xFFB8DCFF).withValues(alpha: alpha);
+      final rr = r * 0.035;
+      canvas.drawCircle(Offset(x, y), rr, paint);
+      final tip = Path()
+        ..moveTo(x - rr * 0.55, y)
+        ..lineTo(x, y - rr * 1.9)
+        ..lineTo(x + rr * 0.55, y)
+        ..close();
+      canvas.drawPath(tip, paint);
+      canvas.drawCircle(
+        Offset(x - rr * 0.3, y - rr * 0.3),
+        rr * 0.3,
+        Paint()..color = Colors.white.withValues(alpha: alpha * 0.7),
+      );
+    }
   }
 
   void _drawEye(Canvas canvas, Offset c, double r, Color dark) {
