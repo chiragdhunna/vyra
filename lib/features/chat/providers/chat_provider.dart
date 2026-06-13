@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_constants.dart';
 import '../../../services/ai/gemini_service.dart';
 import '../../../services/service_providers.dart';
 import '../../avatar/models/avatar_emotion.dart';

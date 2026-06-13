@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../services/service_providers.dart';
-import '../../data/models/fun_content.dart';
 import '../../providers/assistant_provider.dart';
 import '../widgets/fun_card.dart';
 import '../widgets/reminder_tile.dart';
