@@ -33,6 +33,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
   bool _spoke = false;
   DateTime _lastSmileReact = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastInteraction = DateTime.now();
+  DateTime _lastListenStart = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _tick;
 
   static const _greetings = [
@@ -97,8 +98,15 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
       return;
     }
 
-    // Keep the mic open whenever it should be.
-    if (_handsFree && free && voice.sttAvailable && !voice.isListening) {
+    // Keep the mic open whenever it should be — but throttle restarts so the
+    // recognizer can't rapidly flap on/off between sessions.
+    if (_handsFree &&
+        free &&
+        voice.sttAvailable &&
+        !voice.isListening &&
+        DateTime.now().difference(_lastListenStart) >
+            const Duration(milliseconds: 1500)) {
+      _lastListenStart = DateTime.now();
       ref.read(voiceControllerProvider.notifier).startListening(onFinal: _onHeard);
     }
   }
@@ -165,8 +173,15 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
 
     final vision = ref.watch(visionControllerProvider);
     final voice = ref.watch(voiceControllerProvider);
+    final responding =
+        ref.watch(chatControllerProvider.select((s) => s.isResponding));
     final amplitude =
         ref.watch(avatarControllerProvider.select((s) => s.amplitude));
+
+    // Treat hands-free "listening mode" as a steady state (she's neither
+    // speaking nor thinking) so the UI doesn't flicker as the recognizer
+    // restarts between utterances.
+    final inListeningMode = _handsFree && !voice.isSpeaking && !responding;
 
     final seesYou = vision.faceCount > 0;
     final status = vision.error != null
@@ -179,9 +194,11 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
 
     final hint = !_handsFree
         ? 'Muted · tap to go hands-free'
-        : voice.isListening
-            ? 'Listening… just talk'
-            : 'Hands-free on · tap to mute';
+        : voice.isSpeaking
+            ? 'Speaking…'
+            : responding
+                ? 'Thinking…'
+                : 'Listening… just talk';
 
     return Scaffold(
       body: Container(
@@ -209,7 +226,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _CaptionBox(
-                  listening: _handsFree && voice.isListening,
+                  listening: inListeningMode,
                   partial: voice.partialText,
                   caption: _caption,
                   amplitude: amplitude,
@@ -218,7 +235,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
               const Spacer(),
               _MicButton(
                 handsFree: _handsFree,
-                listening: voice.isListening,
+                listening: inListeningMode,
                 onTap: _toggleHandsFree,
               ),
               const SizedBox(height: 12),
