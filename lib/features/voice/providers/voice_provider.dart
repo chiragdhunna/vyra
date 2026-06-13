@@ -95,7 +95,7 @@ class VoiceController extends StateNotifier<VoiceState> {
         if (trimmed.isNotEmpty) _onFinal?.call(trimmed);
       },
       onLevel: (level) =>
-          _avatar.setAmplitude((level.abs() / 10).clamp(0.05, 1.0)),
+          _avatar.setAmplitude((level.abs() / 10).clamp(0.05, 1.0).toDouble()),
     );
   }
 

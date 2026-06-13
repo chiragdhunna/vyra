@@ -46,7 +46,7 @@ class AvatarController extends StateNotifier<AvatarState> {
       state = state.copyWith(activity: activity);
 
   void setAmplitude(double amplitude) =>
-      state = state.copyWith(amplitude: amplitude.clamp(0.0, 1.0));
+      state = state.copyWith(amplitude: amplitude.clamp(0.0, 1.0).toDouble());
 
   /// Convenience: react with an emotion (and optionally an activity) at once.
   void react(AvatarEmotion emotion, {AvatarActivity? activity}) {

@@ -49,7 +49,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
             mainAxisSize: MainAxisSize.min,
             children: List.generate(3, (i) {
               final phase = (_c.value + i * 0.18) % 1.0;
-              final lift = math.sin(phase * math.pi).clamp(0.0, 1.0);
+              final lift = math.sin(phase * math.pi).clamp(0.0, 1.0).toDouble();
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: Transform.translate(

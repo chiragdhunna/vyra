@@ -219,7 +219,7 @@ class _SpeechRateTile extends StatelessWidget {
               ],
             ),
             Slider(
-              value: value.clamp(0.2, 0.9),
+              value: value.clamp(0.2, 0.9).toDouble(),
               min: 0.2,
               max: 0.9,
               divisions: 7,

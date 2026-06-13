@@ -140,7 +140,7 @@ class _VyraAvatarState extends State<VyraAvatar>
               breath: (time / _breathPeriod) % 1.0,
               blink: _blinkCtrl.value,
               ripple: (time / _ripplePeriod) % 1.0,
-              amplitude: _amp.clamp(0.0, 1.0),
+              amplitude: _amp.clamp(0.0, 1.0).toDouble(),
               activity: widget.activity,
               time: time,
             ),

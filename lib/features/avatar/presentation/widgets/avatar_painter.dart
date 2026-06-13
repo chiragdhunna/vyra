@@ -143,7 +143,7 @@ class AvatarPainter extends CustomPainter {
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = r * 0.03
-        ..color = ringColor.withValues(alpha: opacity.clamp(0.0, 1.0));
+        ..color = ringColor.withValues(alpha: opacity.clamp(0.0, 1.0).toDouble());
       canvas.drawCircle(center, radius, paint);
     }
   }
@@ -224,11 +224,11 @@ class AvatarPainter extends CustomPainter {
 
   void _drawEye(Canvas canvas, Offset c, double r, Color dark) {
     final ew = r * 0.15;
-    final openness = (face.eyeOpen * (1 - blink)).clamp(0.04, 1.4);
+    final openness = (face.eyeOpen * (1 - blink)).clamp(0.04, 1.4).toDouble();
     final eh = r * 0.30 * openness;
 
     // Open-eye capsule (crossfaded against the smiling crescent).
-    final openWeight = (1 - face.eyeSmile).clamp(0.0, 1.0);
+    final openWeight = (1 - face.eyeSmile).clamp(0.0, 1.0).toDouble();
     if (openWeight > 0.01) {
       final rrect = RRect.fromRectAndRadius(
         Rect.fromCenter(center: c, width: ew * 2, height: eh * 2),
@@ -266,7 +266,8 @@ class AvatarPainter extends CustomPainter {
   void _drawBrow(Canvas canvas, Offset eye, double r, Color dark,
       {required bool isLeft}) {
     final alpha = (face.browRaise * 0.55 + face.browTilt.abs() * 0.7)
-        .clamp(0.0, 0.85);
+        .clamp(0.0, 0.85)
+        .toDouble();
     if (alpha < 0.05) return;
 
     final browY = eye.dy - r * 0.27 - face.browRaise * r * 0.06;
@@ -292,9 +293,9 @@ class AvatarPainter extends CustomPainter {
     // Live talking motion adds to the opening while speaking.
     final speakBoost =
         activity == AvatarActivity.speaking ? amplitude * 0.45 : 0.0;
-    final open = (face.mouthOpen + speakBoost).clamp(0.0, 1.2) * r * 0.32;
+    final open = (face.mouthOpen + speakBoost).clamp(0.0, 1.2).toDouble() * r * 0.32;
 
-    final lineWeight = (1 - face.mouthOpen).clamp(0.0, 1.0);
+    final lineWeight = (1 - face.mouthOpen).clamp(0.0, 1.0).toDouble();
 
     // Smile / frown line.
     if (lineWeight > 0.02) {
@@ -362,7 +363,7 @@ class AvatarPainter extends CustomPainter {
   /// Lightens (positive) or darkens (negative) a color in HSL space.
   Color _shade(Color c, double amount) {
     final hsl = HSLColor.fromColor(c);
-    final l = (hsl.lightness + amount).clamp(0.0, 1.0);
+    final l = (hsl.lightness + amount).clamp(0.0, 1.0).toDouble();
     return hsl.withLightness(l).toColor();
   }
 
