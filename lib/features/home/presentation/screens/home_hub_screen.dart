@@ -99,9 +99,9 @@ class HomeHubScreen extends ConsumerWidget {
                       onTap: () => _startVoice(ref),
                     ),
                     QuickActionCard(
-                      icon: Icons.face_retouching_natural_rounded,
-                      title: 'Vision',
-                      subtitle: 'Let me see you',
+                      icon: Icons.video_camera_front_rounded,
+                      title: 'Live',
+                      subtitle: 'Talk face-to-face',
                       color: AppColors.accentPink,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const VisionScreen()),

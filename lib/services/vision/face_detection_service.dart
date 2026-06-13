@@ -20,7 +20,7 @@ class FaceDetectionService {
       enableClassification: true, // smiling + eyes-open probabilities
       enableTracking: true,
       performanceMode: FaceDetectorMode.fast,
-      minFaceSize: 0.15,
+      minFaceSize: 0.1,
     ),
   );
 
