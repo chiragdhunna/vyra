@@ -113,6 +113,9 @@ class VoiceController extends StateNotifier<VoiceState> {
   // --- Speaking ---
   Future<void> speak(String text) async {
     if (!_ref.read(settingsProvider).ttsEnabled) return;
+    // Stop the mic before talking so she never hears herself (key for the
+    // hands-free / always-listening mode).
+    if (state.isListening) await stopListening();
     await _tts.setRate(_ref.read(settingsProvider).speechRate);
     await _tts.speak(text);
   }
