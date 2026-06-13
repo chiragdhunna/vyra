@@ -39,7 +39,7 @@ class ChatHistoryScreen extends ConsumerWidget {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           top: false,
           child: sorted.isEmpty
@@ -179,7 +179,7 @@ class _ConversationTile extends StatelessWidget {
               ),
               IconButton(
                 tooltip: 'Delete',
-                icon: const Icon(Icons.delete_outline_rounded,
+                icon: Icon(Icons.delete_outline_rounded,
                     color: AppColors.textMuted),
                 onPressed: onDelete,
               ),
@@ -212,7 +212,7 @@ class _EmptyHistory extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.forum_outlined,
+            Icon(Icons.forum_outlined,
                 color: AppColors.textMuted, size: 44),
             const SizedBox(height: 12),
             Text('No conversations yet',
