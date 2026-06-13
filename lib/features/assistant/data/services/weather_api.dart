@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:geolocator/geolocator.dart';
@@ -33,7 +34,18 @@ class WeatherApi {
       '&units=metric&appid=${Env.openWeatherApiKey}',
     );
 
-    final res = await http.get(uri).timeout(const Duration(seconds: 12));
+    final http.Response res;
+    try {
+      res = await http.get(uri).timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      throw const WeatherException(
+        'Weather request timed out. Check your connection and retry.',
+      );
+    } on Exception {
+      throw const WeatherException(
+        "Couldn't reach the weather service. Please retry in a moment.",
+      );
+    }
     if (res.statusCode != 200) {
       throw WeatherException('Weather service error (${res.statusCode}).');
     }
@@ -53,8 +65,24 @@ class WeatherApi {
         permission == LocationPermission.deniedForever) {
       throw const WeatherException('Location permission is needed for weather.');
     }
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-    );
+    // Without a bound, getCurrentPosition can hang forever when the device
+    // never gets a fix (common on emulators and indoors) — the root cause of
+    // the weather card spinning endlessly (issue #10). Cap it with a timeLimit
+    // and fall back to the last known position so this future always resolves.
+    try {
+      return await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    } on TimeoutException {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) return last;
+      throw const WeatherException(
+        "Couldn't pin down your location in time. "
+        'Make sure GPS is on, then tap retry.',
+      );
+    }
   }
 }
