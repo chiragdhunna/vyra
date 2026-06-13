@@ -25,7 +25,7 @@ platform :android do
   lane :beta do
     gradle(task: "clean assembleRelease")
     crashlytics
-  
+
     # sh "your_script.sh"
     # You can also use other beta testing services here
   end
@@ -38,8 +38,9 @@ platform :android do
 
   desc "Build and distribute production APK"
   lane :prod do
+    # Build from the Flutter project root (one level above android/).
     sh("cd ../.. && flutter pub get")
-    sh("flutter build apk --flavor prod -t lib/main_prod.dart")
+    sh("cd ../.. && flutter build apk --flavor prod -t lib/main_prod.dart")
 
     # Get the latest commit message
     changelog = sh("git log -1 --pretty=%B").strip
@@ -52,5 +53,5 @@ platform :android do
     )
   end
 
-  
+
 end
