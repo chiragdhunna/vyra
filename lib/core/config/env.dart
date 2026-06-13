@@ -21,8 +21,10 @@ class Env {
 
   // --- Gemini ---
   static String get geminiApiKey => _get('GEMINI_API_KEY');
+  // Default kept current: gemini-1.5-flash and gemini-2.0-flash were retired
+  // by Google in 2025–2026. gemini-2.5-flash is fast and free-tier eligible.
   static String get geminiModel =>
-      _get('GEMINI_MODEL', fallback: 'gemini-1.5-flash');
+      _get('GEMINI_MODEL', fallback: 'gemini-2.5-flash');
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 
   // --- Weather ---
