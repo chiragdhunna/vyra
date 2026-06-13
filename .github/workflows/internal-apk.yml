@@ -72,12 +72,13 @@ jobs:
       - name: Install Flutter Dependencies
         run: flutter pub get
 
-      # Setup Firebase Token environment variable
-      - name: Setup Firebase Token
+      # Write the Firebase service account key and expose its path to the lane
+      - name: Write Firebase service account
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          echo "FIREBASE_TOKEN=$FIREBASE_TOKEN" >> $GITHUB_ENV
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          echo "FIREBASE_SERVICE_ACCOUNT_FILE=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
 
       # Run Fastlane 'prod' lane
       - name: Run Fastlane prod lane
