@@ -27,9 +27,9 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.vyra"
-        // minSdk 23 satisfies camera, google_mlkit, geolocator,
-        // speech_to_text and flutter_local_notifications.
-        minSdk = 23
+        // minSdk 24 is required by flutter_tts; also satisfies camera,
+        // google_mlkit, geolocator, speech_to_text & flutter_local_notifications.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
