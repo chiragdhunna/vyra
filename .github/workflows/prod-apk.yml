@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    # Allows manual triggering from any branch via the Actions tab
+
+permissions:
+  contents: write
 
 jobs:
   build-prod-apk:
@@ -41,8 +46,9 @@ jobs:
           path: build/app/outputs/flutter-apk/app-prod-release.apk
           if-no-files-found: warn
 
-      # Upload the APK to the GitHub Release
+      # Upload the APK to the GitHub Release (only when triggered by a version tag push)
       - name: Upload APK to Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: build/app/outputs/flutter-apk/app-prod-release.apk

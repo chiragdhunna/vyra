@@ -3,6 +3,11 @@ name: Internal APK Build (Fastlane)
 on:
   push:
     branches: [main, develop]
+  workflow_dispatch:
+    # Allows manual triggering from any branch via the Actions tab
+
+permissions:
+  contents: write
 
 jobs:
   build-apk:
@@ -93,3 +98,18 @@ jobs:
           name: vyra-prod-apk
           path: build/app/outputs/flutter-apk/app-prod-release.apk
           if-no-files-found: warn
+
+      # Create a GitHub Release with the APK whenever this run targets main
+      - name: Create Release (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: internal-${{ github.run_number }}
+          name: "Internal Build #${{ github.run_number }}"
+          body: |
+            Automated internal build from `main`.
+            Commit: ${{ github.sha }}
+          files: build/app/outputs/flutter-apk/app-prod-release.apk
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
