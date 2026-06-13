@@ -22,7 +22,9 @@ plugins {
     // START: FlutterFire Configuration
     id("com.google.gms.google-services") version("4.3.15") apply false
     // END: FlutterFire Configuration
-    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    // Kotlin 2.2.20 — required so flutter_tts (built against kotlin-stdlib 2.2.x)
+    // can be compiled; the old 1.8.22 compiler can't read 2.2.0 metadata.
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 include(":app")
