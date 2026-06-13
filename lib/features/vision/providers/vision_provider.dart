@@ -208,14 +208,16 @@ class VisionController extends StateNotifier<VisionState> {
         faceRects: const [],
       );
     }
-    _avatar.react(AvatarEmotion.neutral, activity: AvatarActivity.idle);
-    if (cam == null) return;
-    // Stop the image stream and release the camera INDEPENDENTLY: if
-    // stopImageStream throws (a common race when the screen is torn down),
-    // dispose() must still run — that's what frees the hardware and clears the
-    // "camera in use" indicator.
     try {
-      if (cam.value.isStreamingImages) await cam.stopImageStream();
+      _avatar.react(AvatarEmotion.neutral, activity: AvatarActivity.idle);
+    } catch (_) {}
+    if (cam == null) return;
+    // Always attempt to stop the stream (the isStreamingImages flag can be
+    // stale, and disposing while a stream is live can leave the camera open),
+    // then always dispose — dispose() is what frees the hardware and clears the
+    // "camera in use" indicator. Both are guarded independently.
+    try {
+      await cam.stopImageStream();
     } catch (e) {
       AppLogger.w('stopImageStream failed: $e', tag: 'Vision');
     }
