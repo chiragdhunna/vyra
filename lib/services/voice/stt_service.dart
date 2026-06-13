@@ -53,9 +53,12 @@ class SttService {
       listenOptions: SpeechListenOptions(
         partialResults: true,
         cancelOnError: true,
-        listenMode: ListenMode.confirmation,
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 3),
+        // Dictation mode keeps the recognizer open through natural pauses
+        // instead of ending on the first short phrase, so a sentence isn't
+        // chopped into separate sessions. Longer windows reduce restarts.
+        listenMode: ListenMode.dictation,
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 5),
         localeId: 'en_US',
       ),
     );
