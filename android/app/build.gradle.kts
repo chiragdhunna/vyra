@@ -16,6 +16,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Required by flutter_local_notifications (uses java.time APIs).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -25,12 +27,13 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.vyra"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // minSdk 23 satisfies camera, google_mlkit, geolocator,
+        // speech_to_text and flutter_local_notifications.
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
         manifestPlaceholders["flutterTarget"] = "lib/main.dart"
     }
 
@@ -66,4 +69,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Core library desugaring support for flutter_local_notifications.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
