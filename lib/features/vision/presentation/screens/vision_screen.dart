@@ -14,11 +14,11 @@ import '../../../voice/presentation/widgets/voice_wave.dart';
 import '../../../voice/providers/voice_provider.dart';
 import '../../providers/vision_provider.dart';
 
-/// "Live" companion mode. Only Vyra's animated face is shown — the front camera
-/// stays on purely for awareness (face presence / smiles), it is never
-/// displayed. Vyra talks first, asks questions, reacts to your tone (Gemini
-/// drives her emotion, including hurt/cry), and you reply hands-free with the
-/// mic (STT → Gemini → spoken reply).
+/// "Live" companion mode — fully hands-free. Only Vyra's animated face shows;
+/// the front camera stays on for awareness (never displayed). The mic listens
+/// continuously: it auto-pauses while she speaks or thinks (so she never hears
+/// herself) and resumes the moment she's done. She also talks first and keeps
+/// the conversation going. Tap the mic to mute / unmute hands-free.
 class VisionScreen extends ConsumerStatefulWidget {
   const VisionScreen({super.key});
 
@@ -28,10 +28,12 @@ class VisionScreen extends ConsumerStatefulWidget {
 
 class _VisionScreenState extends ConsumerState<VisionScreen> {
   final math.Random _rng = math.Random();
-  String _caption = "Hey! I'm right here — let's talk.";
+  String _caption = "Hey! I'm right here — just start talking.";
+  bool _handsFree = true;
+  bool _spoke = false;
   DateTime _lastSmileReact = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastInteraction = DateTime.now();
-  Timer? _nudgeTimer;
+  Timer? _tick;
 
   static const _greetings = [
     'Hey, there you are! 😊',
@@ -48,7 +50,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     "So, what's on your mind today?",
     'How are you really doing?',
     'Tell me something good that happened recently.',
-    "What have you been up to lately?",
+    'What have you been up to lately?',
     "I'm curious — what's something you're into these days?",
     'Got anything fun coming up?',
     'Want to hear a joke, or shall we just chat?',
@@ -59,37 +61,51 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Camera runs for awareness only — its preview is never shown.
-      ref.read(visionControllerProvider.notifier).start();
+      ref.read(visionControllerProvider.notifier).start(); // awareness only
       ref.read(avatarControllerProvider.notifier).react(AvatarEmotion.caring);
 
-      // Open the conversation herself, like a friend would.
+      // Break the ice herself, in case the camera doesn't spot a face.
       Future.delayed(const Duration(seconds: 4), () {
-        if (!mounted) return;
-        final v = ref.read(voiceControllerProvider);
-        if (!v.isListening && !v.isSpeaking) _speakOpener();
+        if (mounted && !_spoke) _speakOpener();
       });
-      _nudgeTimer =
-          Timer.periodic(const Duration(seconds: 5), (_) => _maybeNudge());
+      // Drives continuous listening + gentle re-engagement.
+      _tick = Timer.periodic(const Duration(milliseconds: 800), (_) => _onTick());
     });
   }
 
   @override
   void dispose() {
-    _nudgeTimer?.cancel();
+    _tick?.cancel();
+    ref.read(voiceControllerProvider.notifier).stopListening();
     ref.read(visionControllerProvider.notifier).stop();
     super.dispose();
   }
 
-  // Re-engage after a stretch of silence (a friend doesn't just go quiet).
-  void _maybeNudge() {
+  void _onTick() {
     if (!mounted) return;
-    final v = ref.read(voiceControllerProvider);
-    if (v.isListening || v.isSpeaking) return;
-    if (DateTime.now().difference(_lastInteraction) >=
-        const Duration(seconds: 22)) {
+    final voice = ref.read(voiceControllerProvider);
+    final responding = ref.read(chatControllerProvider).isResponding;
+
+    // She's neither speaking nor thinking right now.
+    final free = !voice.isSpeaking && !responding;
+
+    // Re-engage after a stretch of silence — a friend doesn't just go quiet.
+    if (free &&
+        DateTime.now().difference(_lastInteraction) >=
+            const Duration(seconds: 22)) {
       _speakOpener();
+      return;
     }
+
+    // Keep the mic open whenever it should be.
+    if (_handsFree && free && voice.sttAvailable && !voice.isListening) {
+      ref.read(voiceControllerProvider.notifier).startListening(onFinal: _onHeard);
+    }
+  }
+
+  void _onHeard(String text) {
+    _lastInteraction = DateTime.now();
+    ref.read(chatControllerProvider.notifier).send(text);
   }
 
   void _speakOpener() {
@@ -101,6 +117,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
 
   void _say(String line, AvatarEmotion emotion) {
     if (!mounted) return;
+    _spoke = true;
     setState(() => _caption = line);
     _lastInteraction = DateTime.now();
     ref.read(avatarControllerProvider.notifier).react(emotion);
@@ -123,27 +140,18 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     }
   }
 
-  void _toggleMic() {
-    _lastInteraction = DateTime.now();
-    final voice = ref.read(voiceControllerProvider);
-    if (!voice.sttAvailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Microphone isn't available")),
-      );
-      return;
+  void _toggleHandsFree() {
+    setState(() => _handsFree = !_handsFree);
+    if (!_handsFree) {
+      ref.read(voiceControllerProvider.notifier).stopListening();
+    } else {
+      _lastInteraction = DateTime.now();
     }
-    ref.read(voiceControllerProvider.notifier).toggleListen(
-      onFinal: (text) {
-        _lastInteraction = DateTime.now();
-        ref.read(chatControllerProvider.notifier).send(text);
-      },
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     ref.listen<VisionState>(visionControllerProvider, _onPresenceChange);
-    // Mirror Vyra's latest spoken reply into the caption.
     ref.listen(chatControllerProvider.select((s) => s.messages.length), (_, __) {
       final msgs = ref.read(chatControllerProvider).messages;
       for (final m in msgs.reversed) {
@@ -168,6 +176,12 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
                 ? 'Love that smile 😊'
                 : 'I can see you 👀')
             : "I'm right here";
+
+    final hint = !_handsFree
+        ? 'Muted · tap to go hands-free'
+        : voice.isListening
+            ? 'Listening… just talk'
+            : 'Hands-free on · tap to mute';
 
     return Scaffold(
       body: Container(
@@ -195,19 +209,20 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: _CaptionBox(
-                  listening: voice.isListening,
+                  listening: _handsFree && voice.isListening,
                   partial: voice.partialText,
                   caption: _caption,
                   amplitude: amplitude,
                 ),
               ),
               const Spacer(),
-              _MicButton(listening: voice.isListening, onTap: _toggleMic),
-              const SizedBox(height: 12),
-              Text(
-                voice.isListening ? 'Tap to stop' : 'Tap to talk',
-                style: AppTextStyles.caption,
+              _MicButton(
+                handsFree: _handsFree,
+                listening: voice.isListening,
+                onTap: _toggleHandsFree,
               ),
+              const SizedBox(height: 12),
+              Text(hint, style: AppTextStyles.caption),
               const SizedBox(height: 24),
             ],
           ),
@@ -294,33 +309,41 @@ class _CaptionBox extends StatelessWidget {
 }
 
 class _MicButton extends StatelessWidget {
-  const _MicButton({required this.listening, required this.onTap});
+  const _MicButton({
+    required this.handsFree,
+    required this.listening,
+    required this.onTap,
+  });
+  final bool handsFree;
   final bool listening;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final active = handsFree;
+    final accent = listening ? AppColors.accent : AppColors.primary;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 72,
-        height: 72,
+        width: 76,
+        height: 76,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: listening ? null : AppColors.brandGradient,
-          color: listening ? AppColors.error : null,
-          boxShadow: [
-            BoxShadow(
-              color: (listening ? AppColors.error : AppColors.primary)
-                  .withValues(alpha: 0.4),
-              blurRadius: 24,
-              spreadRadius: 2,
-            ),
-          ],
+          gradient: active ? AppColors.brandGradient : null,
+          color: active ? null : AppColors.surfaceAlt,
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.45),
+                    blurRadius: listening ? 30 : 18,
+                    spreadRadius: listening ? 4 : 1,
+                  ),
+                ]
+              : null,
         ),
         child: Icon(
-          listening ? Icons.stop_rounded : Icons.mic_rounded,
-          color: Colors.white,
+          active ? Icons.mic_rounded : Icons.mic_off_rounded,
+          color: active ? Colors.white : AppColors.textMuted,
           size: 32,
         ),
       ),
