@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,10 +14,11 @@ import '../../../voice/presentation/widgets/voice_wave.dart';
 import '../../../voice/providers/voice_provider.dart';
 import '../../providers/vision_provider.dart';
 
-/// "Live" companion mode: the animated Vyra avatar is the star and talks to
-/// you, while the front camera runs quietly so she's aware of your presence
-/// and smiles. Tap the mic to have a hands-free conversation (STT → Gemini →
-/// spoken reply). Works fine even if the camera is unavailable.
+/// "Live" companion mode. Only Vyra's animated face is shown — the front camera
+/// stays on purely for awareness (face presence / smiles), it is never
+/// displayed. Vyra talks first, asks questions, reacts to your tone (Gemini
+/// drives her emotion, including hurt/cry), and you reply hands-free with the
+/// mic (STT → Gemini → spoken reply).
 class VisionScreen extends ConsumerStatefulWidget {
   const VisionScreen({super.key});
 
@@ -27,8 +28,10 @@ class VisionScreen extends ConsumerStatefulWidget {
 
 class _VisionScreenState extends ConsumerState<VisionScreen> {
   final math.Random _rng = math.Random();
-  String _caption = "I'm here — tap the mic and talk to me.";
+  String _caption = "Hey! I'm right here — let's talk.";
   DateTime _lastSmileReact = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastInteraction = DateTime.now();
+  Timer? _nudgeTimer;
 
   static const _greetings = [
     'Hey, there you are! 😊',
@@ -41,25 +44,65 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     'That smile makes my day ✨',
     'Aww, you look happy!',
   ];
+  static const _openers = [
+    "So, what's on your mind today?",
+    'How are you really doing?',
+    'Tell me something good that happened recently.',
+    "What have you been up to lately?",
+    "I'm curious — what's something you're into these days?",
+    'Got anything fun coming up?',
+    'Want to hear a joke, or shall we just chat?',
+    'If you could do anything right now, what would it be?',
+  ];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Camera runs for awareness only — its preview is never shown.
       ref.read(visionControllerProvider.notifier).start();
       ref.read(avatarControllerProvider.notifier).react(AvatarEmotion.caring);
+
+      // Open the conversation herself, like a friend would.
+      Future.delayed(const Duration(seconds: 4), () {
+        if (!mounted) return;
+        final v = ref.read(voiceControllerProvider);
+        if (!v.isListening && !v.isSpeaking) _speakOpener();
+      });
+      _nudgeTimer =
+          Timer.periodic(const Duration(seconds: 5), (_) => _maybeNudge());
     });
   }
 
   @override
   void dispose() {
+    _nudgeTimer?.cancel();
     ref.read(visionControllerProvider.notifier).stop();
     super.dispose();
+  }
+
+  // Re-engage after a stretch of silence (a friend doesn't just go quiet).
+  void _maybeNudge() {
+    if (!mounted) return;
+    final v = ref.read(voiceControllerProvider);
+    if (v.isListening || v.isSpeaking) return;
+    if (DateTime.now().difference(_lastInteraction) >=
+        const Duration(seconds: 22)) {
+      _speakOpener();
+    }
+  }
+
+  void _speakOpener() {
+    _say(
+      _openers[_rng.nextInt(_openers.length)],
+      _rng.nextBool() ? AvatarEmotion.happy : AvatarEmotion.caring,
+    );
   }
 
   void _say(String line, AvatarEmotion emotion) {
     if (!mounted) return;
     setState(() => _caption = line);
+    _lastInteraction = DateTime.now();
     ref.read(avatarControllerProvider.notifier).react(emotion);
     ref.read(voiceControllerProvider.notifier).speak(line);
   }
@@ -72,8 +115,8 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
       return;
     }
     final smiling = next.smileProbability > 0.6;
-    final cooled =
-        DateTime.now().difference(_lastSmileReact) > const Duration(seconds: 12);
+    final cooled = DateTime.now().difference(_lastSmileReact) >
+        const Duration(seconds: 12);
     if (isPresent && smiling && cooled) {
       _lastSmileReact = DateTime.now();
       _say(_smileLines[_rng.nextInt(_smileLines.length)], AvatarEmotion.excited);
@@ -81,6 +124,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
   }
 
   void _toggleMic() {
+    _lastInteraction = DateTime.now();
     final voice = ref.read(voiceControllerProvider);
     if (!voice.sttAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,19 +133,22 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
       return;
     }
     ref.read(voiceControllerProvider.notifier).toggleListen(
-          onFinal: ref.read(chatControllerProvider.notifier).send,
-        );
+      onFinal: (text) {
+        _lastInteraction = DateTime.now();
+        ref.read(chatControllerProvider.notifier).send(text);
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // React to what the camera sees.
     ref.listen<VisionState>(visionControllerProvider, _onPresenceChange);
-    // Show Vyra's latest spoken reply as a caption.
+    // Mirror Vyra's latest spoken reply into the caption.
     ref.listen(chatControllerProvider.select((s) => s.messages.length), (_, __) {
       final msgs = ref.read(chatControllerProvider).messages;
       for (final m in msgs.reversed) {
         if (!m.isUser) {
+          _lastInteraction = DateTime.now();
           if (mounted) setState(() => _caption = m.text);
           break;
         }
@@ -112,72 +159,56 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
     final voice = ref.watch(voiceControllerProvider);
     final amplitude =
         ref.watch(avatarControllerProvider.select((s) => s.amplitude));
-    final controller =
-        ref.read(visionControllerProvider.notifier).cameraController;
 
     final seesYou = vision.faceCount > 0;
     final status = vision.error != null
-        ? "Camera's off — but I can still hear you"
+        ? "I can't see, but I'm all ears"
         : seesYou
-            ? (vision.smileProbability > 0.6 ? 'I love that smile 😊' : 'I can see you 👀')
-            : 'Looking for you…';
+            ? (vision.smileProbability > 0.6
+                ? 'Love that smile 😊'
+                : 'I can see you 👀')
+            : "I'm right here";
 
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
-          child: Stack(
+          child: Column(
             children: [
-              Column(
-                children: [
-                  // Top bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () => Navigator.maybePop(context),
-                        ),
-                        Text('Live with Vyra', style: AppTextStyles.heading),
-                      ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Navigator.maybePop(context),
                     ),
-                  ),
-                  const Spacer(),
-                  // The star: the talking avatar
-                  const VyraAvatarLive(size: 260),
-                  const SizedBox(height: 8),
-                  _StatusChip(text: status, active: seesYou),
-                  const SizedBox(height: 16),
-                  // Caption + mic
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _CaptionBox(
-                      listening: voice.isListening,
-                      partial: voice.partialText,
-                      caption: _caption,
-                      amplitude: amplitude,
-                    ),
-                  ),
-                  const Spacer(),
-                  _MicButton(listening: voice.isListening, onTap: _toggleMic),
-                  const SizedBox(height: 28),
-                ],
-              ),
-
-              // Small camera awareness PiP (top-right)
-              Positioned(
-                top: 8,
-                right: 12,
-                child: _CameraPip(
-                  controller:
-                      vision.cameraReady ? controller : null,
-                  faceCount: vision.faceCount,
-                  error: vision.error,
-                  onFlip: () =>
-                      ref.read(visionControllerProvider.notifier).switchCamera(),
+                    Text('Live with Vyra', style: AppTextStyles.heading),
+                  ],
                 ),
               ),
+              const Spacer(),
+              const VyraAvatarLive(size: 280),
+              const SizedBox(height: 10),
+              _StatusChip(text: status, active: seesYou),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _CaptionBox(
+                  listening: voice.isListening,
+                  partial: voice.partialText,
+                  caption: _caption,
+                  amplitude: amplitude,
+                ),
+              ),
+              const Spacer(),
+              _MicButton(listening: voice.isListening, onTap: _toggleMic),
+              const SizedBox(height: 12),
+              Text(
+                voice.isListening ? 'Tap to stop' : 'Tap to talk',
+                style: AppTextStyles.caption,
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -291,80 +322,6 @@ class _MicButton extends StatelessWidget {
           listening ? Icons.stop_rounded : Icons.mic_rounded,
           color: Colors.white,
           size: 32,
-        ),
-      ),
-    );
-  }
-}
-
-class _CameraPip extends StatelessWidget {
-  const _CameraPip({
-    required this.controller,
-    required this.faceCount,
-    required this.error,
-    required this.onFlip,
-  });
-
-  final CameraController? controller;
-  final int faceCount;
-  final String? error;
-  final VoidCallback onFlip;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onFlip,
-      child: Container(
-        width: 96,
-        height: 132,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: faceCount > 0
-                ? AppColors.success.withValues(alpha: 0.8)
-                : Colors.white.withValues(alpha: 0.15),
-            width: 2,
-          ),
-        ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (controller != null)
-              FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: controller!.value.previewSize?.height ?? 96,
-                  height: controller!.value.previewSize?.width ?? 132,
-                  child: CameraPreview(controller!),
-                ),
-              )
-            else
-              Center(
-                child: Icon(
-                  Icons.videocam_off_rounded,
-                  color: AppColors.textMuted,
-                  size: 22,
-                ),
-              ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.45),
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(
-                  error != null
-                      ? 'no camera'
-                      : (faceCount > 0 ? '👁 sees you' : 'looking…'),
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.caption.copyWith(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
