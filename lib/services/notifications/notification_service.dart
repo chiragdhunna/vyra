@@ -104,6 +104,8 @@ class NotificationService {
       scheduled,
       _details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
     );
     AppLogger.d('Scheduled reminder #$id at $scheduled', tag: 'Notify');
   }
