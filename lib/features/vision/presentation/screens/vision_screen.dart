@@ -26,15 +26,22 @@ class VisionScreen extends ConsumerStatefulWidget {
   ConsumerState<VisionScreen> createState() => _VisionScreenState();
 }
 
-class _VisionScreenState extends ConsumerState<VisionScreen> {
+class _VisionScreenState extends ConsumerState<VisionScreen>
+    with WidgetsBindingObserver {
   final math.Random _rng = math.Random();
   String _caption = "Hey! I'm right here — just start talking.";
   bool _handsFree = true;
   bool _spoke = false;
+  bool _foreground = true;
   DateTime _lastSmileReact = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastInteraction = DateTime.now();
   DateTime _lastListenStart = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _tick;
+
+  // Captured once so teardown never depends on `ref` (which is fragile in
+  // dispose / lifecycle callbacks).
+  VisionController? _visionCtrl;
+  VoiceController? _voiceCtrl;
 
   static const _greetings = [
     'Hey, there you are! 😊',
@@ -61,8 +68,11 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
   @override
   void initState() {
     super.initState();
+    _visionCtrl = ref.read(visionControllerProvider.notifier);
+    _voiceCtrl = ref.read(voiceControllerProvider.notifier);
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(visionControllerProvider.notifier).start(); // awareness only
+      _visionCtrl?.start(); // awareness only
       ref.read(avatarControllerProvider.notifier).react(AvatarEmotion.caring);
 
       // Break the ice herself, in case the camera doesn't spot a face.
@@ -77,13 +87,29 @@ class _VisionScreenState extends ConsumerState<VisionScreen> {
   @override
   void dispose() {
     _tick?.cancel();
-    ref.read(voiceControllerProvider.notifier).stopListening();
-    ref.read(visionControllerProvider.notifier).stop();
+    WidgetsBinding.instance.removeObserver(this);
+    // Use the captured notifiers (not ref) so teardown reliably releases the
+    // camera + mic when the screen is closed.
+    _voiceCtrl?.stopListening();
+    _visionCtrl?.stop();
     super.dispose();
   }
 
+  // Release the camera + mic when the app is backgrounded; restart on resume.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _foreground = true;
+      if (mounted) _visionCtrl?.start();
+    } else {
+      _foreground = false;
+      _voiceCtrl?.stopListening();
+      _visionCtrl?.stop();
+    }
+  }
+
   void _onTick() {
-    if (!mounted) return;
+    if (!mounted || !_foreground) return;
     final voice = ref.read(voiceControllerProvider);
     final responding = ref.read(chatControllerProvider).isResponding;
 
