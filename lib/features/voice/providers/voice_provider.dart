@@ -3,8 +3,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/services/permission_service.dart';
 import '../../../services/voice/stt_service.dart';
 import '../../../services/voice/tts_service.dart';
 import '../../avatar/providers/avatar_provider.dart';
@@ -65,6 +67,11 @@ class VoiceController extends StateNotifier<VoiceState> {
       onComplete: _onSpeakComplete,
       rate: _ref.read(settingsProvider).speechRate,
     );
+    // Ask for the microphone through the shared queue so it never races the
+    // weather feature's location request — concurrent dialogs dropped one
+    // another (mic wasn't asked on first launch) and left the loser's Future
+    // hanging. With mic already granted, speech_to_text won't prompt again.
+    await PermissionService.instance.request(Permission.microphone);
     final available = await _stt.init(
       onStatus: (status) {
         if (status == 'done' || status == 'notListening') _endSession();

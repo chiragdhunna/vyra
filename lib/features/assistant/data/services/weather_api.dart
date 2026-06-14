@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/services/permission_service.dart';
 import '../models/weather.dart';
 
 /// Friendly, user-facing error for the weather feature.
@@ -57,16 +58,13 @@ class WeatherApi {
   }
 
   Future<Position> _resolvePosition() async {
-    // 1) Ask for location permission FIRST — before the GPS-services check and
-    // (in the caller) before the API-key check — so the system dialog always
-    // appears when the weather feature loads, the same way the mic prompt
-    // appears when the voice feature initializes. The permission is declared
-    // in the manifest; this surfaces the runtime consent. Requesting it ahead
-    // of the other gates is what fixes "the prompt is never asked" (issue #10).
-    var status = await Permission.location.status;
-    if (!status.isGranted) {
-      status = await Permission.location.request();
-    }
+    // 1) Ask for location permission FIRST, serialized through PermissionService
+    // so it never races the microphone request. Two permission dialogs firing
+    // at once (both features build eagerly at startup) dropped one prompt and
+    // left this Future unresolved — which is why weather hung on "loading"
+    // until the app was restarted (issue #10).
+    final status =
+        await PermissionService.instance.request(Permission.location);
     if (status.isPermanentlyDenied) {
       throw const WeatherException(
         'Location is blocked for Vyra. Enable it in system Settings, then retry.',
@@ -78,29 +76,29 @@ class WeatherApi {
       );
     }
 
-    // 2) Location services (GPS) must be on for a fresh fix.
+    // 2) A cached fix returns instantly and survives a cold GPS — this is the
+    // very reason weather only appeared after a restart, so prefer it for
+    // city‑level weather.
+    final cached = await Geolocator.getLastKnownPosition();
+    if (cached != null) return cached;
+
+    // 3) Otherwise get a fresh, time‑bounded fix so the Future can never hang
+    // the loading state. Location services must be on for a fresh read.
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const WeatherException(
         'Turn on location services for live weather.',
       );
     }
-    // Without a bound, getCurrentPosition can hang forever when the device
-    // never gets a fix (common on emulators and indoors) — the root cause of
-    // the weather card spinning endlessly (issue #10). Cap it with a timeLimit
-    // and fall back to the last known position so this future always resolves.
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 10),
+          timeLimit: Duration(seconds: 12),
         ),
       );
     } on TimeoutException {
-      final last = await Geolocator.getLastKnownPosition();
-      if (last != null) return last;
       throw const WeatherException(
-        "Couldn't pin down your location in time. "
-        'Make sure GPS is on, then tap retry.',
+        "Couldn't get a location fix in time. Make sure GPS is on, then retry.",
       );
     }
   }
