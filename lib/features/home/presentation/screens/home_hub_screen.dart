@@ -31,12 +31,13 @@ class HomeHubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppColors.sync(context);
     final name = ref.watch(settingsProvider.select((s) => s.userName));
     final greeting = name.isEmpty ? _greeting() : '${_greeting()}, $name';
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
