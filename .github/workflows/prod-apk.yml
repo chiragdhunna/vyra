@@ -51,6 +51,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            Production release ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
           files: build/app/outputs/flutter-apk/app-prod-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
