@@ -1,10 +1,11 @@
-name: Internal APK Build (Fastlane)
+name: Android CI/CD
 
 on:
   push:
     branches: [main, develop]
     tags:
       - "v*"
+  pull_request:
   workflow_dispatch:
     inputs:
       bump:
@@ -21,7 +22,27 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.29.2" # see note below re: 3.29.3 vs 3.29.2
+      - run: flutter config --no-analytics --no-cli-animations
+      # dotenv loads `.env` (declared as an asset). Create it so tooling that
+      # bundles assets is happy; values are not needed for analyze/test.
+      - name: Create .env
+        run: cp .env.example .env
+      - run: flutter pub get
+      # Style lints (const, etc.) are reported as info; don't fail CI on them.
+      # Real warnings/errors still fail the build.
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
   build-internal:
+    needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
