@@ -10,6 +10,7 @@ import '../../../avatar/providers/avatar_provider.dart';
 import '../../../voice/presentation/widgets/voice_wave.dart';
 import '../../../voice/providers/voice_provider.dart';
 import '../../providers/chat_provider.dart';
+import 'chat_history_screen.dart';
 import '../widgets/chat_input_bar.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/typing_indicator.dart';
@@ -43,29 +44,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
   }
 
-  Future<void> _confirmClear() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('Clear conversation?', style: AppTextStyles.title),
-        content: Text(
-          'This will erase your chat history with Vyra on this device.',
-          style: AppTextStyles.bodyMuted,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Clear', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
+  void _openHistory() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChatHistoryScreen()),
     );
-    if (ok == true) ref.read(chatControllerProvider.notifier).clear();
+  }
+
+  void _newChat() {
+    // The current conversation is already saved, so starting a new one is
+    // non-destructive — no scary confirm needed.
+    ref.read(chatControllerProvider.notifier).newConversation();
+    context.showSnack('Started a new chat — the old one is in History');
   }
 
   @override
@@ -88,7 +77,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _ChatHeader(onClear: _confirmClear),
+              _ChatHeader(onHistory: _openHistory, onNew: _newChat),
               Expanded(
                 child: ListView.builder(
                   controller: _scroll,
@@ -163,9 +152,10 @@ class _ListeningBanner extends StatelessWidget {
 }
 
 class _ChatHeader extends ConsumerWidget {
-  const _ChatHeader({required this.onClear});
+  const _ChatHeader({required this.onHistory, required this.onNew});
 
-  final VoidCallback onClear;
+  final VoidCallback onHistory;
+  final VoidCallback onNew;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -208,9 +198,14 @@ class _ChatHeader extends ConsumerWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Clear chat',
-            icon: const Icon(Icons.delete_sweep_outlined),
-            onPressed: onClear,
+            tooltip: 'Chat history',
+            icon: const Icon(Icons.history_rounded),
+            onPressed: onHistory,
+          ),
+          IconButton(
+            tooltip: 'New chat',
+            icon: const Icon(Icons.add_comment_outlined),
+            onPressed: onNew,
           ),
         ],
       ),
