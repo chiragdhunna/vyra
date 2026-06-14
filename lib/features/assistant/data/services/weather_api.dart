@@ -23,12 +23,15 @@ class WeatherApi {
   static final WeatherApi instance = WeatherApi._();
 
   Future<Weather> fetchForCurrentLocation() async {
+    // Resolve the location FIRST so the permission prompt always surfaces when
+    // the weather feature loads — even if the API key is missing. Previously
+    // the key check returned early and the prompt was never reached.
+    final pos = await _resolvePosition();
     if (!Env.hasWeatherKey) {
       throw const WeatherException(
         'Add OPENWEATHER_API_KEY to your .env to see live weather.',
       );
     }
-    final pos = await _resolvePosition();
     final uri = Uri.parse(
       '${ApiConstants.openWeatherBase}'
       '?lat=${pos.latitude}&lon=${pos.longitude}'
@@ -54,21 +57,14 @@ class WeatherApi {
   }
 
   Future<Position> _resolvePosition() async {
-    final serviceOn = await Geolocator.isLocationServiceEnabled();
-    if (!serviceOn) {
-      throw const WeatherException(
-        'Turn on location services for live weather.',
-      );
-    }
-
-    // Request location at runtime. The manifest declares the permission, but
-    // Android still needs the user's consent — we surface the system dialog
-    // here with permission_handler (the same way the mic prompt appears when
-    // you start talking). Geolocator's own requestPermission() could silently
-    // no-op once Android has marked the permission "denied forever", which is
-    // why the prompt never appeared before (issue #10).
+    // 1) Ask for location permission FIRST — before the GPS-services check and
+    // (in the caller) before the API-key check — so the system dialog always
+    // appears when the weather feature loads, the same way the mic prompt
+    // appears when the voice feature initializes. The permission is declared
+    // in the manifest; this surfaces the runtime consent. Requesting it ahead
+    // of the other gates is what fixes "the prompt is never asked" (issue #10).
     var status = await Permission.location.status;
-    if (status.isDenied || status.isRestricted) {
+    if (!status.isGranted) {
       status = await Permission.location.request();
     }
     if (status.isPermanentlyDenied) {
@@ -79,6 +75,13 @@ class WeatherApi {
     if (!status.isGranted) {
       throw const WeatherException(
         'Location permission is needed for weather.',
+      );
+    }
+
+    // 2) Location services (GPS) must be on for a fresh fix.
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw const WeatherException(
+        'Turn on location services for live weather.',
       );
     }
     // Without a bound, getCurrentPosition can hang forever when the device
