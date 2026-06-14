@@ -21,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppColors.sync(context);
     final pages = [
       HomeHubScreen(onSelectTab: _select),
       const ChatScreen(),

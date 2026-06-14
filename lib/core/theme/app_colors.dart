@@ -25,6 +25,17 @@ class AppColors {
   static Brightness brightness = Brightness.dark;
   static bool get _isLight => brightness == Brightness.light;
 
+  /// Syncs the active brightness from the inherited [Theme] and returns it.
+  ///
+  /// Call at the very top of a widget's `build()`: it both registers a
+  /// dependency on the Theme (so the widget rebuilds when the user flips
+  /// light/dark mid-session) and refreshes the brightness-aware tokens for the
+  /// reads that follow. Without it, screens that don't otherwise consume
+  /// `Theme.of(context)` keep painting the previous theme until the next app
+  /// launch (issue #7).
+  static Brightness sync(BuildContext context) =>
+      brightness = Theme.of(context).brightness;
+
   // --- Brand (shared across themes) ---
   static const Color primary = Color(0xFF7C5CFF); // violet
   static const Color primaryDeep = Color(0xFF5B3FD9);

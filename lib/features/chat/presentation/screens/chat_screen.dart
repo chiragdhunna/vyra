@@ -70,6 +70,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppColors.sync(context);
     ref.listen(
       chatControllerProvider.select((s) => s.messages.length),
       (_, __) => _scrollToBottom(),

@@ -15,6 +15,7 @@ class AssistantScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppColors.sync(context);
     final weather = ref.watch(weatherProvider);
     final reminders = ref.watch(remindersProvider);
     final fun = ref.watch(funContentProvider);

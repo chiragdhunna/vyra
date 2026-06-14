@@ -201,6 +201,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen>
 
   @override
   Widget build(BuildContext context) {
+    AppColors.sync(context);
     ref.listen<VisionState>(visionControllerProvider, _onPresenceChange);
     ref.listen<VoiceState>(voiceControllerProvider, _onVoiceChange);
     ref.listen(chatControllerProvider.select((s) => s.messages.length), (_, __) {

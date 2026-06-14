@@ -31,6 +31,7 @@ class HomeHubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppColors.sync(context);
     final name = ref.watch(settingsProvider.select((s) => s.userName));
     final greeting = name.isEmpty ? _greeting() : '${_greeting()}, $name';
 

@@ -81,6 +81,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    AppColors.sync(context);
     final isLast = _index == _pages.length - 1;
     return Scaffold(
       body: Container(
