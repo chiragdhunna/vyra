@@ -1,157 +1,201 @@
-# 🤖 Vyra - Your Personal AI Assistant App
+# 🤖 Vyra — Your Personal AI Companion
 
 <p align="center">
-  <img src="assets/vyra_logo.png" alt="Vyra Logo" width="250"/>
+  <img src="assets/vyra_logo.png" alt="Vyra Logo" width="220"/>
 </p>
 
-Vyra is a beautifully crafted AI-powered mobile companion designed to make everyday tasks delightful. Combining conversational intelligence, expressive visuals, voice interaction, and real-world awareness, Vyra brings an emotionally engaging assistant directly to your smartphone.
+<p align="center">
+  <a href="https://github.com/chiragdhunna/vyra/actions/workflows/android-ci-cd.yml">
+    <img src="https://github.com/chiragdhunna/vyra/actions/workflows/android-ci-cd.yml/badge.svg" alt="Android CI/CD"/>
+  </a>
+  <img src="https://img.shields.io/badge/Flutter-3.29-02569B?logo=flutter" alt="Flutter"/>
+  <img src="https://img.shields.io/badge/AI-Google%20Gemini-8E75FF?logo=google" alt="Google Gemini"/>
+  <img src="https://img.shields.io/badge/State-Riverpod-0553B1" alt="Riverpod"/>
+</p>
 
-> **Powered by Google Gemini.** Vyra's animated face is hand-built with Flutter's own animation framework (`CustomPainter` + `AnimationController`) — no Rive, no Lottie, no asset files.
+**Vyra** is a beautifully crafted, emotionally engaging AI companion for mobile. She chats like a close friend, shows feelings through a living animated face, listens and talks back hands‑free, sees you through the camera, and helps with everyday things — weather, reminders, and a little delight.
+
+> **Powered by Google Gemini.** Vyra's animated face is **hand‑built** with Flutter's own animation framework (`CustomPainter` + `AnimationController`) — no Rive, no Lottie, no asset files. Light **and** dark themes, multi‑conversation history, and a turn‑based hands‑free voice mode are all built in.
+
+---
+
+## ✨ Highlights
+
+- 🧠 **Conversational AI** powered by Google Gemini with a warm, witty personality.
+- 🎭 **Hand‑animated avatar** with 8 emotions (including teary `cry`) that react to the conversation in real time.
+- 🗣️ **Hands‑free voice mode** — a turn‑based "listen → reply → listen" loop, like talking to a friend.
+- 📸 **On‑device vision** — Vyra notices your presence and your smile (nothing leaves the phone).
+- 💬 **Saved conversations** — start new chats, browse history, and pick any past chat back up.
+- 🌗 **Light & dark themes** that switch live (Light / Dark / Auto) and retint the whole app instantly.
+- 🌦️ **Assistant tools** — live weather, reminders with notifications, and quotes / jokes / facts.
+- 🔐 **Robust runtime permissions** — requests are serialized so dialogs never collide.
 
 ---
 
 ## 🚀 Features
 
 ### 💬 Intelligent Conversations
+- Natural, multi‑turn chat powered by **Google Gemini** (`google_generative_ai`).
+- A custom personality system prompt makes Vyra warm, curious and proactive — she asks questions back.
+- **Multiple saved conversations**: each chat is stored separately, titled from your first message, with a last‑message preview and timestamp.
+- **Chat History screen** to browse, reopen, or delete past conversations. Starting a new chat is non‑destructive — the old one is kept.
+- Conversations persist across restarts (Hive); legacy single‑thread history is migrated automatically on upgrade.
+- Degrades gracefully: with no API key, Vyra shows a friendly prompt instead of crashing.
 
-- Chat with Vyra using natural language, powered by **Google Gemini**
-- Multi-turn, context-aware conversations that persist across restarts
-- Supports both text and voice input/output
+### 🎭 Animated Avatar (Vyra's Face)
+- A glowing, living orb‑face that blinks, breathes, emotes, talks and reacts — **100% hand‑animated** in Flutter.
+- A `Ticker`‑driven clock feeds a `CustomPainter`; facial parameters (eyes, brows, mouth, tears) **lerp** between states for smooth crossfades.
+- **8 emotions** — `neutral`, `happy`, `excited`, `thinking`, `sad`, `surprised`, `caring`, `cry` — chosen by Gemini via hidden `[emotion: …]` tags and parsed out before display.
+- Layered motion: idle breathing, blinking, listening amplitude pulse, talking mouth, "thinking" dots, sound‑wave ripples, ambient particles, and falling tears for `cry`.
+- She reacts honestly to how she's treated — kindness brings `happy`/`excited`, hard moments bring `caring`, genuine hurt can bring `sad`/`cry`.
 
-### 🎭 Animated Avatar
+### 🗣️ Voice Interaction (Hands‑Free)
+- Real‑time speech‑to‑text (`speech_to_text`) and natural text‑to‑speech (`flutter_tts`) — the mouth moves while she speaks.
+- **Turn‑based hands‑free loop** on the Live screen: the mic opens for your turn, ends on your pause, Vyra replies, then the mic reopens automatically for the next turn — no tapping.
+- A gentle re‑engagement nudge after a lull (capped, so she never nags), and a pause/resume mic button.
+- A hand‑painted live **waveform** visualizes your voice; mic levels also drive the avatar.
 
-- A glowing, living orb-face that blinks, emotes, talks and reacts
-- Emotions (happy, excited, thinking, sad, surprised, caring, neutral) are driven by Gemini via hidden `[emotion: …]` tags and crossfade smoothly
-- **100% hand-animated** in Flutter — a `Ticker` clock drives a `CustomPainter`
+> ℹ️ Vyra uses the device's native on‑device speech recognizer, which works in turns (one speaker at a time). True barge‑in / interrupt‑anytime voice would require a streaming‑ASR backend — see the Roadmap.
 
-### 🗣️ Voice Interaction
-
-- Real-time speech-to-text input (`speech_to_text`)
-- Natural text-to-speech replies (`flutter_tts`) — Vyra's mouth moves while she talks
-- A hand-painted live waveform visualizes your voice
-
-### 📸 Visual Intelligence
-
-- Face detection via the device camera (Google ML Kit)
-- Vyra reacts to your presence and your smile
-- Privacy-friendly: **all vision processing happens on-device**
+### 📸 Visual Intelligence (Live)
+- Camera face detection via **Google ML Kit** (`google_mlkit_face_detection` + `camera`).
+- Vyra reacts to your **presence** and your **smile**, driving the avatar's emotion — the camera powers awareness while the animated character is what you see.
+- **Privacy‑friendly:** all vision processing happens **on‑device**; frames never leave the phone. The camera is released promptly when you leave the screen.
 
 ### 🧠 Smart Assistant Tools
+- **Live weather** via OpenWeatherMap + `geolocator` (with a cached‑location fast path and bounded lookups so it never hangs).
+- **Reminders** with scheduled local notifications (`flutter_local_notifications` + `timezone`).
+- **Quotes, jokes and fun facts** from free public APIs.
 
-- Reminder system with local notifications
-- Live weather (OpenWeatherMap + geolocation)
-- Inspirational quotes, jokes and fun facts from free public APIs
+### 🌗 Theming
+- **Dark‑first** (Vyra glows against a deep‑violet canvas) with a **fully realized light theme**.
+- Switch **Light / Dark / Auto** in Settings — the change applies **live across the whole app**, no restart, and "Auto" follows the OS.
+- Brightness‑aware design tokens keep surfaces, gradients and typography correct in both modes.
+
+### 🧭 Onboarding & Settings
+- A friendly first‑run flow.
+- Settings for your name, voice/TTS toggles, speech rate, theme mode, and clearing chat history.
 
 ---
 
 ## 🧱 Tech Stack
 
-| Component                 | Technology                                |
-| ------------------------- | ----------------------------------------- |
-| **Framework**             | Flutter (iOS + Android)                   |
-| **AI API**                | Google Gemini (`google_generative_ai`)    |
-| **State Management**      | Riverpod (`flutter_riverpod`)             |
-| **TTS**                   | `flutter_tts`                             |
-| **Speech Input**          | `speech_to_text`                          |
-| **Animations**            | Custom Flutter `CustomPainter` (no Rive)  |
-| **Face Detection**        | `google_mlkit_face_detection` + `camera`  |
-| **Storage**               | Hive + `shared_preferences`               |
-| **Notifications**         | `flutter_local_notifications` + `timezone`|
-| **Weather / Location**    | OpenWeatherMap + `geolocator`             |
-| **Config**                | `flutter_dotenv` (+ optional Firebase)    |
+| Component              | Technology                                   |
+| ---------------------- | -------------------------------------------- |
+| **Framework**          | Flutter 3.29 (Android + iOS), Dart `^3.7`    |
+| **AI engine**          | Google Gemini (`google_generative_ai`)       |
+| **State management**   | Riverpod (`flutter_riverpod`, `StateNotifier`)|
+| **Animations**         | Hand‑built `CustomPainter` + `Ticker` (no Rive/Lottie) |
+| **Speech input**       | `speech_to_text`                             |
+| **Speech output**      | `flutter_tts`                                |
+| **Vision**             | `google_mlkit_face_detection` + `camera`     |
+| **Storage**            | Hive + `shared_preferences`                  |
+| **Notifications**      | `flutter_local_notifications` + `timezone`   |
+| **Weather / location** | OpenWeatherMap + `geolocator`                |
+| **Permissions**        | `permission_handler` (serialized)            |
+| **Config**             | `flutter_dotenv` (+ optional `firebase_core`)|
+| **Fonts / utils**      | `google_fonts`, `intl`, `uuid`, `equatable`  |
 
 ---
 
-## 🎨 Architecture & Modules
+## 🏛️ Architecture
 
-### 🎭 Animated Avatar (Vyra's Face)
+Vyra follows a **feature‑first** structure with a thin **services** layer and **Riverpod** for state.
 
-- Built with `CustomPainter` + a `Ticker`-based clock — no animation packages
-- Emotions map to Gemini's `[emotion: …]` tags; the painter crossfades eyes, brows and mouth
-- Layered motion: idle breathing, blinking, listening pulse, talking mouth, "thinking" dots, sound-wave ripples and ambient particles
+- **Feature modules** (`lib/features/*`) each own their UI (`presentation/`), state (`providers/`) and, where relevant, data/models. State is held in `StateNotifier`s exposed via `StateNotifierProvider`.
+- **Services** (`lib/services/*`) wrap the platform/SDK plumbing — Gemini, STT, TTS, ML Kit face detection, Hive storage and notifications — behind small, testable singletons.
+- **Core** (`lib/core/*`) holds cross‑cutting concerns: environment/flavor config, theme tokens, app constants (including Vyra's personality prompt), shared providers and the permission queue.
+- **The avatar is the integration point:** chat, voice and vision all push an `emotion` + `activity` to the `AvatarController`, and the painter renders the result — so Vyra's face stays in sync with what she's doing.
 
-### 🧠 AI Engine (Chat Layer)
+### 🔐 Permission model
+Vyra requests **microphone** (voice) and **location** (weather) at runtime. Because every tab is built eagerly in the home `IndexedStack`, those requests could fire simultaneously — and Android only shows **one** permission dialog at a time, which dropped a prompt and left the loser's request hanging. A small **`PermissionService`** serializes all requests through a single queue so each dialog appears in turn and each request resolves cleanly.
 
-- Google Gemini via the official `google_generative_ai` SDK
-- A single multi-turn chat session with a custom personality system prompt
-- Replies are parsed into `(text, emotion)` so the face reacts in sync
-- Degrades gracefully with a friendly message if no API key is present
-
-### 🗣️ Voice Input / Output
-
-- `speech_to_text` for capturing voice (with live sound levels → avatar)
-- `flutter_tts` for spoken replies; the avatar mouths along while speaking
-
-### 📸 Vision Features
-
-- `google_mlkit_face_detection` + `camera` with the standard on-device pipeline
-- Reactions triggered by detected faces and smiles — nothing leaves the device
-
-### 🛠️ Assistant Tools
-
-- Local notifications for reminders via `flutter_local_notifications`
-- Weather via OpenWeatherMap
-- Daily quotes, facts and jokes via public APIs
+### 🤖 AI engine details
+- A single multi‑turn Gemini session per active conversation, seeded with the conversation's history.
+- The system prompt (in `core/constants/app_constants.dart`) defines Vyra's voice and instructs the model to end every reply with a hidden `[emotion: X]` tag; replies are parsed into `(text, emotion)` so the avatar reacts.
+- Default model: **`gemini-2.5-flash`** (fast, free‑tier eligible). Older `gemini-1.5-flash` / `gemini-2.0-flash` were retired by Google.
 
 ---
 
-## 🧭 Folder Structure
+## 🗂️ Project Structure
 
-```bash
+```text
 lib/
-├── core/                 # Config (env, flavors), theme, constants, utils, shared providers
+├── core/
+│   ├── config/          # env.dart (.env access), flavor_config.dart
+│   ├── constants/       # app_constants.dart (Vyra personality prompt), api_constants.dart
+│   ├── providers/       # settings_provider.dart
+│   ├── services/        # permission_service.dart (serialized permission queue)
+│   ├── theme/           # app_colors.dart (brightness‑aware), app_theme.dart, app_text_styles.dart
+│   └── utils/           # app_logger.dart, extensions.dart
 ├── features/
-│   ├── avatar/           # Hand-animated face (painter, emotions, provider)
-│   ├── chat/             # Conversational logic + UI
-│   ├── voice/            # Speech-to-text, text-to-speech, waveform
-│   ├── vision/           # Camera-based face detection
-│   ├── assistant/        # Weather, reminders, quotes/jokes/facts
-│   ├── home/             # Home hub + bottom-nav shell
-│   ├── onboarding/       # First-run flow
-│   └── settings/         # Preferences
-├── shared/               # Reusable widgets (gradient bg, glass card, buttons)
-├── services/             # Gemini, voice, vision, storage, notifications
-├── app.dart              # Root MaterialApp
-└── main.dart             # Bootstrap + flavor entrypoint
+│   ├── avatar/          # avatar_emotion.dart (8 emotions incl. cry), avatar_painter.dart, provider
+│   ├── chat/            # chat_message + chat_conversation models, chat_provider,
+│   │                    # chat_screen, chat_history_screen, message/typing/input widgets
+│   ├── voice/           # voice_provider (STT/TTS bridge), voice_wave widget
+│   ├── vision/          # vision_provider (camera + ML Kit), vision_screen (Live), overlay painter
+│   ├── assistant/       # weather_api + fun_content_api, providers, assistant_screen, cards
+│   ├── home/            # home_screen (bottom‑nav shell), home_hub_screen, quick‑action cards
+│   ├── onboarding/      # first‑run flow
+│   └── settings/        # preferences (name, voice, theme, clear history)
+├── services/
+│   ├── ai/              # gemini_service.dart
+│   ├── voice/           # stt_service.dart, tts_service.dart
+│   ├── vision/          # face_detection_service.dart
+│   ├── storage/         # storage_service.dart (Hive + shared_preferences)
+│   ├── notifications/   # notification_service.dart
+│   └── service_providers.dart
+├── shared/widgets/      # gradient background, glass card, primary button, flavor banner
+├── app.dart             # Root MaterialApp (theme + brightness wiring)
+├── main.dart            # Shared bootstrap (mainCommon)
+├── main_dev.dart        # Dev flavor entrypoint
+├── main_staging.dart    # Staging flavor entrypoint
+└── main_prod.dart       # Prod flavor entrypoint
 ```
 
 ---
 
-## 📦 Installation
+## 🏁 Getting Started
+
+### Prerequisites
+- Flutter **3.29.x** and Dart `^3.7`
+- Android SDK (minSdk **24**) / Xcode for iOS
+- A Google **Gemini** API key
+
+### Setup
 
 ```bash
+# 1. Clone
 git clone https://github.com/chiragdhunna/vyra.git
 cd vyra
 
-# 1. Create your environment file and add your keys
+# 2. Configure environment
 cp .env.example .env
-#   then edit .env and set at least GEMINI_API_KEY
+#    then edit .env and set at least GEMINI_API_KEY
 
-# 2. Install dependencies and run
+# 3. Install dependencies
 flutter pub get
+
+# 4. Run (dev flavor)
 flutter run --flavor dev -t lib/main_dev.dart
 ```
 
 ### Environment variables (`.env`)
 
-| Key                   | Required | Notes                                                        |
-| --------------------- | -------- | ------------------------------------------------------------ |
-| `GEMINI_API_KEY`      | ✅       | Get one at https://aistudio.google.com/app/apikey            |
-| `GEMINI_MODEL`        | optional | Defaults to `gemini-1.5-flash`                               |
-| `OPENWEATHER_API_KEY` | optional | Enables live weather (https://openweathermap.org/api)        |
-| `FIREBASE_*`          | optional | Vyra runs fine without Firebase                              |
+| Key                   | Required | Notes                                                            |
+| --------------------- | :------: | ---------------------------------------------------------------- |
+| `GEMINI_API_KEY`      |    ✅    | Get one at <https://aistudio.google.com/app/apikey>              |
+| `GEMINI_MODEL`        |    —     | Defaults to `gemini-2.5-flash` (must be a current model)         |
+| `OPENWEATHER_API_KEY` |    —     | Enables live weather (<https://openweathermap.org/api>)          |
+| `FIREBASE_*`          |    —     | Optional; Vyra runs fine without Firebase                        |
 
-> `.env` is git-ignored. The app still runs without keys — features that need them show a friendly prompt instead of crashing.
-
-### Permissions
-
-Camera, microphone, speech recognition, location and notification permissions are already declared in `AndroidManifest.xml` and `Info.plist`, and are requested at runtime when first used.
+> `.env` is git‑ignored and bundled as an asset. The app still runs without optional keys — features that need them show a friendly prompt instead of failing.
 
 ---
 
-## 🏗️ Flavors & Environments
+## 🧩 Flavors & Environments
 
-Vyra supports **dev**, **staging**, and **prod** flavors.
+Vyra ships **dev**, **staging** and **prod** flavors (Gradle `env` dimension; `.dev` / `.staging` application‑id suffixes), each with its own Dart entrypoint:
 
 ```bash
 flutter run --flavor dev     -t lib/main_dev.dart
@@ -159,30 +203,81 @@ flutter run --flavor staging -t lib/main_staging.dart
 flutter run --flavor prod    -t lib/main_prod.dart
 ```
 
-For iOS, duplicate the Xcode schemes per flavor and point each at the matching Dart entrypoint.
+Production APK (what CI ships):
+
+```bash
+flutter build apk --flavor prod -t lib/main_prod.dart
+```
+
+> For iOS, duplicate the Xcode schemes per flavor and point each at the matching Dart entrypoint.
+
+---
+
+## 🔁 CI/CD
+
+A single workflow — **`.github/workflows/android-ci-cd.yml`** — runs on pushes to `main`/`develop`, `v*` tags, pull requests, and manual dispatch (with a `patch`/`minor`/`major` version‑bump input):
+
+1. **`test`** — `flutter analyze --no-fatal-infos` + `flutter test` (Flutter 3.29.2). Style‑only lints don't fail the build; real warnings/errors do.
+2. **`build-internal`** — builds the prod APK and distributes it via **Fastlane → Firebase App Distribution**, and publishes an "Internal Build" GitHub pre‑release from `main`.
+3. **`build-prod`** — reuses the built APK, auto‑computes the next `vX.Y.Z` tag (or uses the pushed tag), and publishes a production GitHub Release.
+
+### Required GitHub secrets
+
+| Secret | Purpose |
+| ------ | ------- |
+| `GEMINI_API_KEY` | Gemini key baked into the CI `.env` |
+| `OPENWEATHER_API_KEY` | Weather key (optional) |
+| `FIREBASE_ANDROID_API_KEY`, `FIREBASE_ANDROID_APP_ID`, `FIREBASE_ANDROID_MESSAGING_SENDER_ID`, `FIREBASE_ANDROID_PROJECT_ID`, `FIREBASE_ANDROID_STORAGE_BUCKET` | Firebase config for the build |
+| `FIREBASE_SERVICE_ACCOUNT` | Service‑account JSON for Firebase App Distribution |
+
+`GITHUB_TOKEN` is provided automatically by Actions for creating releases.
+
+---
+
+## 🔐 Permissions
+
+Declared in `AndroidManifest.xml` (and iOS `Info.plist`) and requested at runtime, serialized through `PermissionService`:
+
+| Permission | Used for |
+| ---------- | -------- |
+| Microphone | Voice input (speech‑to‑text) |
+| Camera | On‑device face detection (Live) |
+| Location (fine/coarse) | Live weather |
+| Notifications | Reminders |
+
+If a permission is permanently denied, Vyra shows an actionable message pointing to system Settings rather than failing silently.
+
+---
+
+## 🧪 Quality
+
+```bash
+flutter analyze --no-fatal-infos   # static analysis (matches CI)
+flutter test                       # unit/widget tests
+```
 
 ---
 
 ## 📅 Roadmap
 
-- [x] Chat interface powered by Gemini
-- [x] Animated avatar + emotion mapping (hand-built, no Rive)
-- [x] Voice interaction pipeline (STT + TTS)
-- [x] Visual interaction (on-device face detection)
+- [x] Gemini‑powered chat with persistent, **multi‑conversation history**
+- [x] Hand‑built animated avatar + emotion mapping (8 emotions incl. `cry`)
+- [x] Voice pipeline (STT + TTS) with **turn‑based hands‑free** mode
+- [x] On‑device vision (face/smile detection) with prompt camera release
 - [x] Assistant tools (weather, reminders, quotes/jokes/facts)
+- [x] **Light & dark themes** with live switching
 - [x] Onboarding & settings
+- [ ] Streaming‑ASR backend for true interrupt‑anytime voice
 - [ ] Object detection & richer scene awareness
-- [ ] Wake-word activation
-- [ ] Release on Play Store / App Store
+- [ ] Wake‑word activation
+- [ ] Play Store / App Store release
 
 ---
 
-## 🤝 Contribution
+## 🤝 Contributing
 
-Pull requests are welcome. For major changes, please open an issue first.
-
-If you're interested in contributing new emotions, voice packs, or assistant modules—reach out!
+Pull requests are welcome! For major changes, please open an issue first to discuss what you'd like to change. New emotions, voice packs, and assistant modules are especially appreciated.
 
 ---
 
-Vyra is built with ❤️ to bring humanlike AI presence to mobile experiences.
+<p align="center"><em>Vyra is built with ❤️ to bring a warm, humanlike AI presence to mobile.</em></p>
