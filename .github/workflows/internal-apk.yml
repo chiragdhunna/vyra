@@ -3,14 +3,25 @@ name: Internal APK Build (Fastlane)
 on:
   push:
     branches: [main, develop]
+    tags:
+      - "v*"
   workflow_dispatch:
-    # Allows manual triggering from any branch via the Actions tab
+    inputs:
+      bump:
+        description: "Version bump type for the production release"
+        required: false
+        type: choice
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
 
 jobs:
-  build-apk:
+  build-internal:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +30,7 @@ jobs:
 
       # Cache Ruby dependencies to speed up the process
       - name: Cache Ruby gems
-        uses: actions/cache@v3 # Updated to v3
+        uses: actions/cache@v3
         with:
           path: android/vendor/bundle
           key: ${{ runner.os }}-ruby-${{ hashFiles('android/Gemfile.lock') }}
@@ -31,7 +42,7 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.1"
-          bundler-cache: true # Enable caching for gems
+          bundler-cache: true
 
       # Install dependencies (bundler, gems)
       - name: Install dependencies
@@ -58,9 +69,9 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.29.2" # Match your local version (Flutter 3.29.2)
+          flutter-version: "3.29.2"
           channel: "stable"
-          cache: true # Enable caching for Flutter dependencies
+          cache: true
 
       - name: Create .env from GitHub Secrets
         run: |
@@ -91,7 +102,7 @@ jobs:
           cd android/fastlane
           bundle exec fastlane android prod
 
-      # Upload the APK artifact
+      # Upload the APK artifact (consumed by build-prod below)
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -99,8 +110,8 @@ jobs:
           path: build/app/outputs/flutter-apk/app-prod-release.apk
           if-no-files-found: warn
 
-      # Create a GitHub Release with the APK whenever this run targets main
-      - name: Create Release (main only)
+      # Create an "Internal Build" pre-release whenever this run targets main
+      - name: Create Internal Release (main only)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
@@ -111,5 +122,63 @@ jobs:
             Commit: ${{ github.sha }}
           files: build/app/outputs/flutter-apk/app-prod-release.apk
           prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-prod:
+    needs: build-internal
+    if: success() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Need full tag history to compute the next version
+
+      # Reuse the APK that build-internal already produced — no rebuild needed
+      - name: Download internal build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vyra-prod-apk
+          path: artifact
+
+      # Determine the release tag:
+      # - Tag push (v*): use that tag as-is.
+      # - Push to main / manual dispatch: auto-bump the latest vX.Y.Z tag
+      #   (bump type from input, default "patch").
+      - name: Determine release tag
+        id: release_tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            bump="${{ github.event.inputs.bump }}"
+            bump="${bump:-patch}"
+            latest=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)
+            if [ -z "$latest" ]; then
+              latest="v0.0.0"
+            fi
+            latest="${latest#v}"
+            IFS='.' read -r major minor patch <<< "$latest"
+            case "$bump" in
+              major) major=$((major + 1)); minor=0; patch=0 ;;
+              minor) minor=$((minor + 1)); patch=0 ;;
+              *) patch=$((patch + 1)) ;;
+            esac
+            new_tag="v${major}.${minor}.${patch}"
+            echo "Latest tag: v${latest} -> New tag: ${new_tag}"
+            echo "tag=${new_tag}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Create the production release and upload the APK.
+      # prerelease defaults to false, so this takes over "Latest".
+      - name: Create Production Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: "Release ${{ steps.release_tag.outputs.tag }}"
+          body: |
+            Production release ${{ steps.release_tag.outputs.tag }}
+            Commit: ${{ github.sha }}
+          files: artifact/app-prod-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
