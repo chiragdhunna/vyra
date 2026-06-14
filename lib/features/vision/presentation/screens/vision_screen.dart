@@ -201,6 +201,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen>
 
   @override
   Widget build(BuildContext context) {
+    AppColors.sync(context);
     ref.listen<VisionState>(visionControllerProvider, _onPresenceChange);
     ref.listen<VoiceState>(voiceControllerProvider, _onVoiceChange);
     ref.listen(chatControllerProvider.select((s) => s.messages.length), (_, __) {
@@ -248,7 +249,7 @@ class _VisionScreenState extends ConsumerState<VisionScreen>
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: Column(
             children: [

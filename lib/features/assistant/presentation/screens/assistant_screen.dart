@@ -15,13 +15,14 @@ class AssistantScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    AppColors.sync(context);
     final weather = ref.watch(weatherProvider);
     final reminders = ref.watch(remindersProvider);
     final fun = ref.watch(funContentProvider);
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+        decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
@@ -114,7 +115,7 @@ class _EmptyReminders extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.notifications_none_rounded,
+          Icon(Icons.notifications_none_rounded,
               color: AppColors.textMuted, size: 36),
           const SizedBox(height: 8),
           Text('No reminders yet',
@@ -227,7 +228,7 @@ class _AddReminderSheetState extends State<_AddReminderSheet> {
                   const Icon(Icons.schedule_rounded, color: AppColors.primarySoft),
                   const SizedBox(width: 12),
                   Expanded(child: Text(dateLabel, style: AppTextStyles.body)),
-                  const Icon(Icons.edit_calendar_rounded,
+                  Icon(Icons.edit_calendar_rounded,
                       color: AppColors.textMuted, size: 20),
                 ],
               ),
