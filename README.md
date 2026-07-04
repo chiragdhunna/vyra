@@ -19,6 +19,42 @@
 
 ---
 
+## 📸 Meet Vyra
+
+<p align="center">
+  <img src="assets/readme/hero.webp" alt="Vyra — anime companion" width="300"/>
+</p>
+
+<p align="center"><em>She sits with you, blinks, breathes, talks — and her whole expression follows the conversation.</em></p>
+
+### 🎭 Nine emotions, driven by the conversation
+
+<div align="center">
+
+| 🙂 neutral | 😊 happy | 🤩 excited |
+|:---:|:---:|:---:|
+| <img src="assets/readme/emotion_neutral.webp" width="170"/> | <img src="assets/readme/emotion_happy.webp" width="170"/> | <img src="assets/readme/emotion_excited.webp" width="170"/> |
+| **🤔 thinking** | **😔 sad** | **😮 surprised** |
+| <img src="assets/readme/emotion_thinking.webp" width="170"/> | <img src="assets/readme/emotion_sad.webp" width="170"/> | <img src="assets/readme/emotion_surprised.webp" width="170"/> |
+| **🥰 caring** | **😭 cry** | **😠 angry** |
+| <img src="assets/readme/emotion_caring.webp" width="170"/> | <img src="assets/readme/emotion_cry.webp" width="170"/> | <img src="assets/readme/emotion_angry.webp" width="170"/> |
+
+</div>
+
+### 🕺 Gestures & talking
+
+<div align="center">
+
+| 👋 wave | 😂 laugh | 🥱 stretch | 👀 lean in | 🗣️ talking |
+|:---:|:---:|:---:|:---:|:---:|
+| <img src="assets/readme/gesture_wave.webp" width="130"/> | <img src="assets/readme/gesture_laugh.webp" width="130"/> | <img src="assets/readme/gesture_stretch.webp" width="130"/> | <img src="assets/readme/gesture_lean.webp" width="130"/> | <img src="assets/readme/talk_talk.webp" width="130"/> |
+
+</div>
+
+She waves when she greets you or when you come back to your desk, laughs at her own jokes, stretches when you look tired, leans in as an idle fidget — and her lips flap in sync with her voice while she speaks.
+
+---
+
 ## 🛋️ Companion mode (new home screen)
 
 Vyra now opens straight into a single full‑screen **companion view**: her animated face, a status chip, and a mute button. No tabs, no chat bubbles — the phone sits on your desk and she's simply *there*. The camera is on for awareness (presence + smile, processed on‑device) but **you never see yourself — only her**. The classic screens (chat, history, tools) live behind the widgets icon, top‑right.
