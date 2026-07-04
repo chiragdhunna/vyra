@@ -282,17 +282,22 @@ class CompanionController extends StateNotifier<CompanionState> {
   void _onPcm(Uint8List pcm) {
     _client?.sendAudio(pcm);
     // Cheap RMS so her face pulses with your voice while listening.
+    // Samples are read byte-wise (little-endian int16): the `record` plugin
+    // hands out views into a larger buffer whose offsetInBytes is often NOT
+    // 2-byte aligned, so ByteBuffer.asInt16List would throw a RangeError.
     if (state.phase == CompanionPhase.listening && pcm.length >= 2) {
-      final data = pcm.buffer.asInt16List(
-        pcm.offsetInBytes, pcm.lengthInBytes ~/ 2);
       var acc = 0.0;
-      // Sample every 8th value — plenty for an animation level.
-      for (var i = 0; i < data.length; i += 8) {
-        final v = data[i].toDouble();
+      var count = 0;
+      // Sample every 8th frame (16 bytes) — plenty for an animation level.
+      for (var i = 0; i + 1 < pcm.length; i += 16) {
+        final v = (pcm[i] | (pcm[i + 1] << 8)).toSigned(16).toDouble();
         acc += v * v;
+        count++;
       }
-      final rms = math.sqrt(acc / (data.length / 8)) / 32768.0;
-      _avatar.setAmplitude((rms * 6).clamp(0.05, 1.0).toDouble());
+      if (count > 0) {
+        final rms = math.sqrt(acc / count) / 32768.0;
+        _avatar.setAmplitude((rms * 6).clamp(0.05, 1.0).toDouble());
+      }
     }
   }
 
