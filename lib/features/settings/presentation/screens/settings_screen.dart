@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/providers/settings_provider.dart';
+import '../../../../services/voice/tts_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../chat/providers/chat_provider.dart';
@@ -51,9 +54,26 @@ class SettingsScreen extends ConsumerWidget {
               value: settings.speechRate,
               onChanged: notifier.setSpeechRate,
             ),
+            _SettingTile(
+              icon: Icons.graphic_eq_rounded,
+              title: "Vyra's voice",
+              subtitle: settings.voiceName.isEmpty
+                  ? 'Auto (device default)'
+                  : settings.voiceName,
+              onTap: () => _pickVoice(context, ref),
+            ),
 
             const SizedBox(height: 16),
             _SectionLabel('Appearance'),
+            _SwitchTile(
+              icon: Icons.face_retouching_natural_rounded,
+              title: 'Anime companion',
+              subtitle: settings.animeAvatar
+                  ? 'Vyra appears as her anime self'
+                  : 'Classic glowing orb face',
+              value: settings.animeAvatar,
+              onChanged: (v) => notifier.setAvatarStyle(v ? 'anime' : 'orb'),
+            ),
             _ThemeTile(
               mode: settings.themeMode,
               onChanged: notifier.setThemeMode,
@@ -72,6 +92,64 @@ class SettingsScreen extends ConsumerWidget {
             _About(),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _pickVoice(BuildContext context, WidgetRef ref) async {
+    final tts = TtsService.instance;
+    final voices = await tts.englishVoices();
+    if (!context.mounted) return;
+    if (voices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No voices reported by this device.')),
+      );
+      return;
+    }
+    final current = ref.read(settingsProvider).voiceName;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text("Vyra's voice", style: AppTextStyles.title),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 360,
+          child: ListView.builder(
+            itemCount: voices.length,
+            itemBuilder: (context, i) {
+              final v = voices[i];
+              final selected = v['name'] == current;
+              return ListTile(
+                dense: true,
+                leading: Icon(
+                  selected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  color: selected ? AppColors.primary : AppColors.textMuted,
+                  size: 20,
+                ),
+                title: Text(v['name']!,
+                    style: AppTextStyles.body, overflow: TextOverflow.ellipsis),
+                subtitle: Text(v['locale']!, style: AppTextStyles.caption),
+                onTap: () async {
+                  // Apply + audition immediately; persist the choice.
+                  await tts.applyVoice(v['name']!, v['locale']!);
+                  await ref
+                      .read(settingsProvider.notifier)
+                      .setVoice(v['name']!, v['locale']!);
+                  unawaited(tts.sample());
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
   }

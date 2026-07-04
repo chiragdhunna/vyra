@@ -18,6 +18,9 @@ class AppConstants {
   static const String keyTtsEnabled = 'tts_enabled';
   static const String keySpeechRate = 'speech_rate';
   static const String keyThemeMode = 'theme_mode';
+  static const String keyAvatarStyle = 'avatar_style'; // 'anime' | 'orb'
+  static const String keyVoiceName = 'voice_name'; // TTS voice identity
+  static const String keyVoiceLocale = 'voice_locale';
 
   // --- Animation durations ---
   static const Duration fast = Duration(milliseconds: 200);

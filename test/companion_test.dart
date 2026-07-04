@@ -3,12 +3,64 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:vyra/features/avatar/assets/anime_sprites.dart';
 import 'package:vyra/features/avatar/models/avatar_emotion.dart';
 import 'package:vyra/features/avatar/presentation/widgets/avatar_painter.dart';
 import 'package:vyra/services/ai/backend_ai_service.dart';
 import 'package:vyra/services/backend/realtime_events.dart';
+import 'package:vyra/services/voice/tts_service.dart';
 
 void main() {
+  group('AnimeSprites', () {
+    test('every emotion has decodable idle/talk/blink frames', () {
+      for (final emotion in AvatarEmotion.values) {
+        expect(AnimeSprites.hasEmotion(emotion.name), isTrue,
+            reason: 'missing sprite set for ${emotion.name}');
+        for (final state in AnimeSprites.states) {
+          final bytes = AnimeSprites.bytesFor(emotion.name, state);
+          expect(bytes.length, greaterThan(5000),
+              reason: '${emotion.name}/$state suspiciously small');
+          // WebP container magic: RIFF....WEBP
+          expect(String.fromCharCodes(bytes.sublist(0, 4)), 'RIFF');
+          expect(String.fromCharCodes(bytes.sublist(8, 12)), 'WEBP');
+        }
+      }
+    });
+
+    test('unknown emotion/state fall back instead of crashing', () {
+      expect(AnimeSprites.bytesFor('banana', 'idle').length, greaterThan(0));
+      expect(
+          AnimeSprites.bytesFor('happy', 'moonwalk').length, greaterThan(0));
+    });
+  });
+
+  group('TtsService.pickFemale', () {
+    test('prefers explicit female markers', () {
+      final pick = TtsService.pickFemale([
+        {'name': 'en-us-x-abc-male', 'locale': 'en-US'},
+        {'name': 'English Female Warm', 'locale': 'en-GB'},
+      ]);
+      expect(pick!['name'], 'English Female Warm');
+    });
+
+    test('falls back to known female voice codes', () {
+      final pick = TtsService.pickFemale([
+        {'name': 'en-us-x-iom-local', 'locale': 'en-US'},
+        {'name': 'en-us-x-tpa-network', 'locale': 'en-US'},
+      ]);
+      expect(pick!['name'], 'en-us-x-tpa-network');
+    });
+
+    test('returns null when nothing matches', () {
+      expect(
+        TtsService.pickFemale([
+          {'name': 'mystery-voice-1', 'locale': 'en-US'}
+        ]),
+        isNull,
+      );
+    });
+  });
+
   group('AvatarEmotion.angry', () {
     test('parses from tag and has a face', () {
       expect(AvatarEmotion.fromTag('angry'), AvatarEmotion.angry);

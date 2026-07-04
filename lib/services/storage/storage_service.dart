@@ -65,6 +65,22 @@ class StorageService {
   Future<void> setSpeechRate(double v) =>
       _settings.put(AppConstants.keySpeechRate, v);
 
+  /// 'anime' (sprite character) or 'orb' (classic painter face).
+  String get avatarStyle =>
+      _settings.get(AppConstants.keyAvatarStyle, defaultValue: 'anime')
+          as String;
+  Future<void> setAvatarStyle(String v) =>
+      _settings.put(AppConstants.keyAvatarStyle, v);
+
+  String get voiceName =>
+      _settings.get(AppConstants.keyVoiceName, defaultValue: '') as String;
+  String get voiceLocale =>
+      _settings.get(AppConstants.keyVoiceLocale, defaultValue: '') as String;
+  Future<void> setVoice(String name, String locale) async {
+    await _settings.put(AppConstants.keyVoiceName, name);
+    await _settings.put(AppConstants.keyVoiceLocale, locale);
+  }
+
   ThemeMode get themeMode {
     final raw =
         _settings.get(AppConstants.keyThemeMode, defaultValue: 'dark') as String;

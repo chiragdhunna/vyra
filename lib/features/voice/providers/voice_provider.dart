@@ -67,6 +67,7 @@ class VoiceController extends StateNotifier<VoiceState> {
       onComplete: _onSpeakComplete,
       rate: _ref.read(settingsProvider).speechRate,
     );
+    await _applyPreferredVoice();
     // Ask for the microphone through the shared queue so it never races the
     // weather feature's location request — concurrent dialogs dropped one
     // another (mic wasn't asked on first launch) and left the loser's Future
@@ -79,6 +80,25 @@ class VoiceController extends StateNotifier<VoiceState> {
       onError: (_) => _endSession(),
     );
     state = state.copyWith(sttAvailable: available);
+  }
+
+  /// Applies the saved TTS voice; on first run auto-picks a female voice
+  /// (Vyra is a girl — she shouldn't sound like a robot butler) and persists
+  /// the choice so Settings > Voice shows it.
+  Future<void> _applyPreferredVoice() async {
+    final settings = _ref.read(settingsProvider);
+    if (settings.voiceName.isNotEmpty) {
+      await _tts.applyVoice(settings.voiceName, settings.voiceLocale);
+      return;
+    }
+    final voices = await _tts.englishVoices();
+    final pick = TtsService.pickFemale(voices);
+    if (pick != null) {
+      await _tts.applyVoice(pick['name']!, pick['locale']!);
+      await _ref
+          .read(settingsProvider.notifier)
+          .setVoice(pick['name']!, pick['locale']!);
+    }
   }
 
   // --- Listening ---

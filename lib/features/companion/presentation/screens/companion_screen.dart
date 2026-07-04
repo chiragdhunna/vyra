@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../avatar/presentation/widgets/anime_avatar.dart';
 import '../../../avatar/presentation/widgets/vyra_avatar.dart';
 import '../../../avatar/providers/avatar_provider.dart';
 import '../../../home/presentation/screens/home_screen.dart';
@@ -95,7 +97,11 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
                 onSettings: _openSettings,
               ),
               const Spacer(),
-              const VyraAvatarLive(size: 300),
+              if (ref.watch(
+                  settingsProvider.select((s) => s.animeAvatar)))
+                const AnimeAvatar(width: 250)
+              else
+                const VyraAvatarLive(size: 300),
               const SizedBox(height: 14),
               _StatusChip(
                 text: status,
