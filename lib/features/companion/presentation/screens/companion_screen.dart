@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,7 +8,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../avatar/presentation/widgets/anime_avatar.dart';
 import '../../../avatar/presentation/widgets/vyra_avatar.dart';
-import '../../../avatar/providers/avatar_provider.dart';
 import '../../../home/presentation/screens/home_screen.dart';
 import '../../../settings/presentation/screens/settings_screen.dart';
 import '../../../vision/providers/vision_provider.dart';
@@ -14,13 +15,19 @@ import '../../../voice/providers/voice_provider.dart';
 import '../../providers/companion_provider.dart';
 import '../../../../services/backend/realtime_events.dart';
 
-/// Vyra's home — and, by design, almost the only thing you ever see.
+/// Vyra's home — and, by design, the only thing you see.
 ///
-/// The phone sits on the desk, this screen stays open, and Vyra is simply
-/// *there*: her animated face front and center, camera awareness running
-/// silently (never shown — you see her, she sees you), the mic open. No
-/// chat bubbles, no tabs. The old multi-screen app still exists behind the
-/// tools icon for the moments you want text chat or the assistant toolbox.
+/// **Anime mode (default) is fully immersive:** just her, filling the
+/// screen. No captions, no buttons, no status text — like a person, not an
+/// app. The camera runs for awareness (never shown) and the mic stays open.
+///
+///  * **tap** anywhere → mute / unmute (a ghost icon confirms, then fades)
+///  * **long-press** → quiet options sheet (settings, chat & tools, status)
+///  * a slim "reaching my brain…" pill appears only while the backend is
+///    unreachable, and melts away once she's back
+///
+/// Classic orb mode keeps the original chrome (status chip, captions, mic
+/// button) for people who prefer the informative look.
 class CompanionScreen extends ConsumerStatefulWidget {
   const CompanionScreen({super.key});
 
@@ -30,6 +37,9 @@ class CompanionScreen extends ConsumerStatefulWidget {
 
 class _CompanionScreenState extends ConsumerState<CompanionScreen>
     with WidgetsBindingObserver {
+  bool _showMuteGhost = false;
+  Timer? _ghostTimer;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +53,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
 
   @override
   void dispose() {
+    _ghostTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     ref.read(companionControllerProvider.notifier).stop();
     ref.read(visionControllerProvider.notifier).stop();
@@ -61,26 +72,195 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
     }
   }
 
-  void _openClassic() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+  void _toggleMute() {
+    ref.read(companionControllerProvider.notifier).toggleMute();
+    _ghostTimer?.cancel();
+    setState(() => _showMuteGhost = true);
+    _ghostTimer = Timer(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _showMuteGhost = false);
+    });
   }
 
-  void _openSettings() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+  void _openOptions() {
+    final companion = ref.read(companionControllerProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: Icon(
+                companion.online
+                    ? Icons.bolt_rounded
+                    : Icons.cloud_off_rounded,
+                color: companion.online
+                    ? AppColors.success
+                    : AppColors.textMuted,
+              ),
+              title: Text(
+                companion.brainLabel.isEmpty
+                    ? 'Standalone'
+                    : companion.brainLabel,
+                style: AppTextStyles.body,
+              ),
+              subtitle: Text(
+                companion.online ? 'Connected' : 'Reconnecting…',
+                style: AppTextStyles.caption,
+              ),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.widgets_outlined, color: AppColors.primarySoft),
+              title: Text('Chat & tools', style: AppTextStyles.body),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined,
+                  color: AppColors.primarySoft),
+              title: Text('Settings', style: AppTextStyles.body),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     AppColors.sync(context);
+    final anime =
+        ref.watch(settingsProvider.select((s) => s.animeAvatar));
+    return anime ? _buildImmersive(context) : _buildClassic(context);
+  }
+
+  // ------------------------------------------------------------------ //
+  // Immersive: only her.
+  // ------------------------------------------------------------------ //
+  Widget _buildImmersive(BuildContext context) {
+    final companion = ref.watch(companionControllerProvider);
+
+    return Scaffold(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggleMute,
+        onLongPress: _openOptions,
+        child: Container(
+          decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
+          child: SafeArea(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Her — as large as the screen allows (sprites are 2:3).
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = (constraints.maxHeight / 1.5)
+                        .clamp(0.0, constraints.maxWidth)
+                        .toDouble();
+                    return Center(child: AnimeAvatar(width: width * 0.96));
+                  },
+                ),
+
+                // Transient mute/unmute confirmation ghost.
+                AnimatedOpacity(
+                  opacity: _showMuteGhost ? 1 : 0,
+                  duration: const Duration(milliseconds: 250),
+                  child: Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.45),
+                    ),
+                    child: Icon(
+                      companion.micMuted
+                          ? Icons.mic_off_rounded
+                          : Icons.mic_rounded,
+                      size: 44,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+
+                // Slim pill, only while her brain is unreachable.
+                if (!companion.online)
+                  Positioned(
+                    top: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface.withValues(alpha: 0.75),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.6,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('reaching my brain…',
+                              style: AppTextStyles.caption),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Persistent-but-quiet mute badge while muted.
+                if (companion.micMuted && !_showMuteGhost)
+                  Positioned(
+                    bottom: 18,
+                    child: Icon(
+                      Icons.mic_off_rounded,
+                      size: 18,
+                      color: AppColors.textMuted.withValues(alpha: 0.55),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------ //
+  // Classic orb mode: the original informative layout.
+  // ------------------------------------------------------------------ //
+  Widget _buildClassic(BuildContext context) {
     final companion = ref.watch(companionControllerProvider);
     final voice = ref.watch(voiceControllerProvider);
     final vision = ref.watch(visionControllerProvider);
-    final amplitude =
-        ref.watch(avatarControllerProvider.select((s) => s.amplitude));
 
     final status = _statusText(companion, voice, vision.faceCount > 0);
 
@@ -93,15 +273,15 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
               _TopBar(
                 brainLabel: companion.brainLabel,
                 online: companion.online,
-                onTools: _openClassic,
-                onSettings: _openSettings,
+                onTools: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                ),
+                onSettings: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
               ),
               const Spacer(),
-              if (ref.watch(
-                  settingsProvider.select((s) => s.animeAvatar)))
-                const AnimeAvatar(width: 250)
-              else
-                const VyraAvatarLive(size: 300),
+              const VyraAvatarLive(size: 300),
               const SizedBox(height: 14),
               _StatusChip(
                 text: status,
@@ -112,11 +292,7 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: _Caption(
-                  companion: companion,
-                  voice: voice,
-                  amplitude: amplitude,
-                ),
+                child: _Caption(companion: companion, voice: voice),
               ),
               const Spacer(),
               _MicButton(
@@ -257,30 +433,20 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _Caption extends StatelessWidget {
-  const _Caption({
-    required this.companion,
-    required this.voice,
-    required this.amplitude,
-  });
+  const _Caption({required this.companion, required this.voice});
 
   final CompanionState companion;
   final VoiceState voice;
-  final double amplitude;
 
   @override
   Widget build(BuildContext context) {
-    // Turn-based modes show your live partial transcript while you speak.
     if (voice.isListening) {
-      return Column(
-        children: [
-          Text(
-            voice.partialText.isEmpty ? 'Go ahead…' : voice.partialText,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMuted,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+      return Text(
+        voice.partialText.isEmpty ? 'Go ahead…' : voice.partialText,
+        textAlign: TextAlign.center,
+        style: AppTextStyles.bodyMuted,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
       );
     }
     return Text(

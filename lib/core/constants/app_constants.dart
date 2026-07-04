@@ -21,6 +21,7 @@ class AppConstants {
   static const String keyAvatarStyle = 'avatar_style'; // 'anime' | 'orb'
   static const String keyVoiceName = 'voice_name'; // TTS voice identity
   static const String keyVoiceLocale = 'voice_locale';
+  static const String keyVoicePitch = 'voice_pitch';
 
   // --- Animation durations ---
   static const Duration fast = Duration(milliseconds: 200);

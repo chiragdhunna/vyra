@@ -112,4 +112,12 @@ class TtsService {
   Future<void> stop() => _tts.stop();
 
   Future<void> setRate(double rate) => _tts.setSpeechRate(rate);
+
+  Future<void> setPitch(double pitch) async {
+    try {
+      await _tts.setPitch(pitch.clamp(0.5, 2.0).toDouble());
+    } catch (e) {
+      AppLogger.w('setPitch failed: $e', tag: 'TTS');
+    }
+  }
 }

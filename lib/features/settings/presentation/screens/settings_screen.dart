@@ -62,6 +62,11 @@ class SettingsScreen extends ConsumerWidget {
                   : settings.voiceName,
               onTap: () => _pickVoice(context, ref),
             ),
+            _PitchTile(
+              value: settings.voicePitch,
+              onChanged: notifier.setVoicePitch,
+              onChangeEnd: (_) => TtsService.instance.sample(),
+            ),
 
             const SizedBox(height: 16),
             _SectionLabel('Appearance'),
@@ -272,6 +277,52 @@ class _SwitchTile extends StatelessWidget {
         value: value,
         activeColor: AppColors.accent,
         onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _PitchTile extends StatelessWidget {
+  const _PitchTile({
+    required this.value,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+  final double value;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.tune_rounded, color: AppColors.primarySoft),
+                const SizedBox(width: 12),
+                Text('Voice pitch', style: AppTextStyles.body),
+              ],
+            ),
+            Slider(
+              value: value.clamp(0.8, 1.6).toDouble(),
+              min: 0.8,
+              max: 1.6,
+              divisions: 8,
+              activeColor: AppColors.accent,
+              label: value < 1.05
+                  ? 'Deeper'
+                  : value > 1.35
+                      ? 'Higher'
+                      : 'Bright',
+              onChanged: onChanged,
+              onChangeEnd: onChangeEnd,
+            ),
+          ],
+        ),
       ),
     );
   }

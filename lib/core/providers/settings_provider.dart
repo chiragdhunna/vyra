@@ -15,6 +15,7 @@ class AppSettings {
   final String avatarStyle; // 'anime' | 'orb'
   final String voiceName; // '' = engine default
   final String voiceLocale;
+  final double voicePitch;
 
   const AppSettings({
     required this.themeMode,
@@ -25,6 +26,7 @@ class AppSettings {
     this.avatarStyle = 'anime',
     this.voiceName = '',
     this.voiceLocale = '',
+    this.voicePitch = 1.25,
   });
 
   bool get animeAvatar => avatarStyle == 'anime';
@@ -38,6 +40,7 @@ class AppSettings {
     String? avatarStyle,
     String? voiceName,
     String? voiceLocale,
+    double? voicePitch,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -48,6 +51,7 @@ class AppSettings {
       avatarStyle: avatarStyle ?? this.avatarStyle,
       voiceName: voiceName ?? this.voiceName,
       voiceLocale: voiceLocale ?? this.voiceLocale,
+      voicePitch: voicePitch ?? this.voicePitch,
     );
   }
 }
@@ -68,6 +72,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         avatarStyle: s.avatarStyle,
         voiceName: s.voiceName,
         voiceLocale: s.voiceLocale,
+        voicePitch: s.voicePitch,
       );
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -103,6 +108,11 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> setVoice(String name, String locale) async {
     await _storage.setVoice(name, locale);
     state = state.copyWith(voiceName: name, voiceLocale: locale);
+  }
+
+  Future<void> setVoicePitch(double value) async {
+    await _storage.setVoicePitch(value);
+    state = state.copyWith(voicePitch: value);
   }
 }
 

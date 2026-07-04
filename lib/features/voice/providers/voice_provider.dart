@@ -166,7 +166,12 @@ class VoiceController extends StateNotifier<VoiceState> {
     // Stop the mic before talking so she never hears herself (key for the
     // hands-free / always-listening mode).
     if (state.isListening) await stopListening();
-    await _tts.setRate(_ref.read(settingsProvider).speechRate);
+    final settings = _ref.read(settingsProvider);
+    await _tts.setRate(settings.speechRate);
+    await _tts.setPitch(settings.voicePitch);
+    if (settings.voiceName.isNotEmpty) {
+      await _tts.applyVoice(settings.voiceName, settings.voiceLocale);
+    }
     await _tts.speak(text);
   }
 
