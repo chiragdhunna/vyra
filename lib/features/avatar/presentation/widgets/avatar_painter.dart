@@ -74,6 +74,12 @@ class FaceParams {
         eyeOpen: 0.55, eyeSmile: 0.0, browTilt: 0.95, browRaise: 0.0,
         mouthCurve: -0.8, mouthOpen: 0.45, mouthWidth: 0.55, pupilY: 0.35,
         glow: 0.6, tears: 1.0),
+    // Furrowed inner-down brows, narrowed eyes, tight downturned mouth and a
+    // hot flare of glow: unmistakably cross, still Vyra.
+    'angry': FaceParams(
+        eyeOpen: 0.62, eyeSmile: 0.0, browTilt: -1.0, browRaise: 0.0,
+        mouthCurve: -0.55, mouthOpen: 0.12, mouthWidth: 0.45, pupilY: 0.1,
+        glow: 1.15),
   };
 
   static FaceParams forEmotion(String name) =>
