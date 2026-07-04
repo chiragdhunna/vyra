@@ -15,14 +15,30 @@
 
 **Vyra** is a beautifully crafted, emotionally engaging AI companion for mobile. She chats like a close friend, shows feelings through a living animated face, listens and talks back hands‑free, sees you through the camera, and helps with everyday things — weather, reminders, and a little delight.
 
-> **Powered by Google Gemini.** Vyra's animated face is **hand‑built** with Flutter's own animation framework (`CustomPainter` + `AnimationController`) — no Rive, no Lottie, no asset files. Light **and** dark themes, multi‑conversation history, and a turn‑based hands‑free voice mode are all built in.
+> **Powered by Google Gemini — or your own local model.** With the companion backend ([vyra-backend](https://github.com/chiragdhunna/vyra-backend)) on your Wi‑Fi, Vyra's brain can be **Ollama (fully local/private), Gemini, or any OpenAI‑compatible model**, chosen by the backend's `.env`. Vyra's animated face is **hand‑built** with Flutter's own animation framework (`CustomPainter` + `AnimationController`) — no Rive, no Lottie, no asset files. Light **and** dark themes, multi‑conversation history, and hands‑free voice are all built in.
+
+---
+
+## 🛋️ Companion mode (new home screen)
+
+Vyra now opens straight into a single full‑screen **companion view**: her animated face, a status chip, and a mute button. No tabs, no chat bubbles — the phone sits on your desk and she's simply *there*. The camera is on for awareness (presence + smile, processed on‑device) but **you never see yourself — only her**. The classic screens (chat, history, tools) live behind the widgets icon, top‑right.
+
+It runs in one of three modes, picked automatically at startup:
+
+| Mode | When | What you get |
+| --- | --- | --- |
+| **Backend live** | `VYRA_BACKEND_URL` set, backend has Whisper | Continuous mic streaming to [vyra-backend](https://github.com/chiragdhunna/vyra-backend): server VAD decides when you finished, you can **interrupt her mid‑sentence** (barge‑in), and she greets/re‑engages proactively. |
+| **Backend hybrid** | `VYRA_BACKEND_URL` set, no server STT | On‑device turn‑based ears, but the backend's brain (Ollama/cloud) + server‑side proactivity. |
+| **Standalone** | no backend configured | The original on‑device loop talking to Gemini directly (needs `GEMINI_API_KEY`). |
+
+Setup for backend modes: run vyra-backend on a computer, phone on the **same Wi‑Fi**, then set `VYRA_BACKEND_URL=http://<computer-LAN-IP>:8000` in this app's `.env`. API keys stay on the computer — the phone never ships one.
 
 ---
 
 ## ✨ Highlights
 
 - 🧠 **Conversational AI** powered by Google Gemini with a warm, witty personality.
-- 🎭 **Hand‑animated avatar** with 8 emotions (including teary `cry`) that react to the conversation in real time.
+- 🎭 **Hand‑animated avatar** with 9 emotions (including teary `cry` and a new `angry`) that react to the conversation in real time.
 - 🗣️ **Hands‑free voice mode** — a turn‑based "listen → reply → listen" loop, like talking to a friend.
 - 📸 **On‑device vision** — Vyra notices your presence and your smile (nothing leaves the phone).
 - 💬 **Saved conversations** — start new chats, browse history, and pick any past chat back up.
@@ -45,7 +61,7 @@
 ### 🎭 Animated Avatar (Vyra's Face)
 - A glowing, living orb‑face that blinks, breathes, emotes, talks and reacts — **100% hand‑animated** in Flutter.
 - A `Ticker`‑driven clock feeds a `CustomPainter`; facial parameters (eyes, brows, mouth, tears) **lerp** between states for smooth crossfades.
-- **8 emotions** — `neutral`, `happy`, `excited`, `thinking`, `sad`, `surprised`, `caring`, `cry` — chosen by Gemini via hidden `[emotion: …]` tags and parsed out before display.
+- **9 emotions** — `neutral`, `happy`, `excited`, `thinking`, `sad`, `surprised`, `caring`, `cry`, `angry` — chosen by Gemini via hidden `[emotion: …]` tags and parsed out before display.
 - Layered motion: idle breathing, blinking, listening amplitude pulse, talking mouth, "thinking" dots, sound‑wave ripples, ambient particles, and falling tears for `cry`.
 - She reacts honestly to how she's treated — kindness brings `happy`/`excited`, hard moments bring `caring`, genuine hurt can bring `sad`/`cry`.
 
@@ -86,9 +102,10 @@
 | **AI engine**          | Google Gemini (`google_generative_ai`)       |
 | **State management**   | Riverpod (`flutter_riverpod`, `StateNotifier`)|
 | **Animations**         | Hand‑built `CustomPainter` + `Ticker` (no Rive/Lottie) |
-| **Speech input**       | `speech_to_text`                             |
+| **Speech input**       | `speech_to_text` (turn‑based) · `record` PCM streaming (companion live mode) |
 | **Speech output**      | `flutter_tts`                                |
 | **Vision**             | `google_mlkit_face_detection` + `camera`     |
+| **Backend link**       | `web_socket_channel` (realtime) + `http` (chat) → [vyra-backend](https://github.com/chiragdhunna/vyra-backend) |
 | **Storage**            | Hive + `shared_preferences`                  |
 | **Notifications**      | `flutter_local_notifications` + `timezone`   |
 | **Weather / location** | OpenWeatherMap + `geolocator`                |
@@ -129,7 +146,7 @@ lib/
 │   ├── theme/           # app_colors.dart (brightness‑aware), app_theme.dart, app_text_styles.dart
 │   └── utils/           # app_logger.dart, extensions.dart
 ├── features/
-│   ├── avatar/          # avatar_emotion.dart (8 emotions incl. cry), avatar_painter.dart, provider
+│   ├── avatar/          # avatar_emotion.dart (9 emotions incl. cry, angry), avatar_painter.dart, provider
 │   ├── chat/            # chat_message + chat_conversation models, chat_provider,
 │   │                    # chat_screen, chat_history_screen, message/typing/input widgets
 │   ├── voice/           # voice_provider (STT/TTS bridge), voice_wave widget
@@ -184,7 +201,9 @@ flutter run --flavor dev -t lib/main_dev.dart
 
 | Key                   | Required | Notes                                                            |
 | --------------------- | :------: | ---------------------------------------------------------------- |
-| `GEMINI_API_KEY`      |    ✅    | Get one at <https://aistudio.google.com/app/apikey>              |
+| `VYRA_BACKEND_URL`    |    —     | `http://<computer-LAN-IP>:8000` running [vyra-backend](https://github.com/chiragdhunna/vyra-backend). When set, Vyra's brain lives there (Ollama or cloud) and no key is needed on the phone. |
+| `VYRA_BACKEND_API_KEY`|    —     | Only if the backend sets `VYRA_API_KEY`                          |
+| `GEMINI_API_KEY`      | standalone | Get one at <https://aistudio.google.com/app/apikey> — required only without a backend |
 | `GEMINI_MODEL`        |    —     | Defaults to `gemini-2.5-flash` (must be a current model)         |
 | `OPENWEATHER_API_KEY` |    —     | Enables live weather (<https://openweathermap.org/api>)          |
 | `FIREBASE_*`          |    —     | Optional; Vyra runs fine without Firebase                        |
@@ -267,7 +286,7 @@ flutter test                       # unit/widget tests
 - [x] Assistant tools (weather, reminders, quotes/jokes/facts)
 - [x] **Light & dark themes** with live switching
 - [x] Onboarding & settings
-- [ ] Streaming‑ASR backend for true interrupt‑anytime voice
+- [x] Streaming‑ASR backend for true interrupt‑anytime voice — via [vyra-backend](https://github.com/chiragdhunna/vyra-backend) companion live mode
 - [ ] Object detection & richer scene awareness
 - [ ] Wake‑word activation
 - [ ] Play Store / App Store release
