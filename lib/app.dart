@@ -7,7 +7,7 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'services/service_providers.dart';
 import 'shared/widgets/flavor_banner.dart';
-import 'features/home/presentation/screens/home_screen.dart';
+import 'features/companion/presentation/screens/companion_screen.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 
 /// Root of the Vyra app. Picks the theme from user settings, shows a flavor
@@ -41,7 +41,7 @@ class VyraApp extends ConsumerWidget {
       themeMode: themeMode,
       builder: (context, child) =>
           FlavorBanner(child: child ?? const SizedBox.shrink()),
-      home: onboardingDone ? const HomeScreen() : const OnboardingScreen(),
+      home: onboardingDone ? const CompanionScreen() : const OnboardingScreen(),
     );
   }
 }

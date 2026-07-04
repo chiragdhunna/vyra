@@ -9,7 +9,7 @@ import '../../../../services/service_providers.dart';
 import '../../../avatar/models/avatar_emotion.dart';
 import '../../../avatar/presentation/widgets/vyra_avatar.dart';
 import '../../../avatar/providers/avatar_provider.dart';
-import '../../../home/presentation/screens/home_screen.dart';
+import '../../../companion/presentation/screens/companion_screen.dart';
 
 class _Page {
   final AvatarEmotion emotion;
@@ -75,7 +75,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref.read(storageServiceProvider).setOnboardingDone(true);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const CompanionScreen()),
     );
   }
 
