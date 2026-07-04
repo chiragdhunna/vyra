@@ -150,6 +150,10 @@ class RealtimeClient {
 
   void sendUserText(String text) => _send(ClientEvents.userText(text));
 
+  /// One downscaled JPEG for the backend's vision glimpse.
+  void sendVisionFrame(Uint8List jpeg) =>
+      _send(ClientEvents.visionFrame(jpeg));
+
   void sendTtsState({required bool playing}) =>
       _send(ClientEvents.ttsState(playing: playing));
 

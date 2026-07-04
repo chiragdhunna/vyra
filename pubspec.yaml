@@ -29,6 +29,8 @@ dependencies:
   # --- Realtime companion (vyra-backend link) ---
   web_socket_channel: ^3.0.2
   record: ^5.2.1
+  audioplayers: ^6.1.0 # plays her neural voice streamed from the backend
+  image: ^4.3.0 # downscale camera frames for the vision LLM glimpse
 
   # --- Vision (on-device, privacy friendly) ---
   camera: ^0.11.0+2

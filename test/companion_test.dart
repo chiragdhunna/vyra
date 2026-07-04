@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -95,10 +96,26 @@ void main() {
         'provider': 'ollama',
         'model': 'llama3.1',
         'stt': 'server',
+        'tts': 'server',
+        'vision_frames': true,
+        'vision_frame_interval': 15,
       }));
       expect(ready, isA<SessionReady>());
       expect((ready as SessionReady).serverStt, isTrue);
+      expect(ready.serverTts, isTrue);
+      expect(ready.visionFrames, isTrue);
+      expect(ready.frameIntervalSeconds, 15.0);
       expect(ready.provider, 'ollama');
+
+      // Old servers omit the new fields — safe defaults.
+      final oldReady = RealtimeEvent.decode(jsonEncode({
+        'type': 'session.ready',
+        'provider': 'ollama',
+        'model': 'llama3.1',
+        'stt': 'client',
+      }));
+      expect((oldReady as SessionReady).serverTts, isFalse);
+      expect(oldReady.visionFrames, isFalse);
 
       final state = RealtimeEvent.decode(
           jsonEncode({'type': 'state', 'value': 'thinking'}));
@@ -137,6 +154,19 @@ void main() {
         isA<UserFinal>(),
       );
       expect(RealtimeEvent.decode(jsonEncode({'type': 'pong'})), isA<Pong>());
+
+      // Her neural voice arriving as MP3 bytes…
+      final mp3 = base64Encode([0x49, 0x44, 0x33, 1, 2, 3]);
+      final audio = RealtimeEvent.decode(jsonEncode(
+          {'type': 'assistant.audio', 'id': 7, 'audio_b64': mp3}));
+      expect(audio, isA<AssistantAudio>());
+      expect((audio as AssistantAudio).id, 7);
+      expect(audio.audio!.length, 6);
+
+      // …and the explicit fall-back-to-device signal.
+      final fallback = RealtimeEvent.decode(jsonEncode(
+          {'type': 'assistant.audio', 'id': 8, 'audio_b64': ''}));
+      expect((fallback as AssistantAudio).audio, isNull);
     });
 
     test('unknown events and junk are ignored, not crashes', () {
@@ -165,6 +195,11 @@ void main() {
 
       final tts = jsonDecode(ClientEvents.ttsState(playing: true)) as Map;
       expect(tts, {'type': 'tts.state', 'playing': true});
+
+      final frame = jsonDecode(ClientEvents.visionFrame(
+          Uint8List.fromList([0xFF, 0xD8, 1, 2]))) as Map;
+      expect(frame['type'], 'vision.frame');
+      expect(base64Decode(frame['jpeg_b64'] as String).length, 4);
     });
   });
 

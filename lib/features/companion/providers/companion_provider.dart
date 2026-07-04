@@ -8,6 +8,7 @@ import '../../../core/config/env.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../services/audio/mic_streamer.dart';
+import '../../../services/audio/server_voice_player.dart';
 import '../../../services/backend/realtime_client.dart';
 import '../../../services/backend/realtime_events.dart';
 import '../../../services/service_providers.dart';
@@ -82,7 +83,13 @@ class CompanionController extends StateNotifier<CompanionState> {
 
   RealtimeClient? _client;
   MicStreamer? _mic;
+  ServerVoicePlayer? _serverVoice;
   Timer? _tick;
+  Timer? _frameTimer;
+  Timer? _speakPulse;
+  Timer? _audioWatchdog;
+  bool _serverTts = false;
+  String _pendingSayText = '';
   final math.Random _rng = math.Random();
 
   bool _running = false;
@@ -159,6 +166,11 @@ class CompanionController extends StateNotifier<CompanionState> {
     _running = false;
     _tick?.cancel();
     _tick = null;
+    _frameTimer?.cancel();
+    _frameTimer = null;
+    _speakPulse?.cancel();
+    _audioWatchdog?.cancel();
+    await _serverVoice?.stop();
     await _stopMic();
     await _client?.close();
     _client = null;
@@ -197,7 +209,15 @@ class CompanionController extends StateNotifier<CompanionState> {
   void _onEvent(RealtimeEvent event) {
     if (!mounted) return;
     switch (event) {
-      case SessionReady(:final provider, :final model, :final serverStt):
+      case SessionReady(
+          :final provider,
+          :final model,
+          :final serverStt,
+          :final serverTts,
+          :final visionFrames,
+          :final frameIntervalSeconds,
+        ):
+        _serverTts = serverTts;
         state = state.copyWith(
           mode: serverStt
               ? CompanionMode.backendLive
@@ -210,6 +230,17 @@ class CompanionController extends StateNotifier<CompanionState> {
           _startMicIfNeeded();
         } else {
           _armDeviceListening();
+        }
+        _frameTimer?.cancel();
+        if (visionFrames) {
+          // Situational sight: ship one small glimpse frame periodically.
+          _frameTimer = Timer.periodic(
+            Duration(
+                milliseconds: (frameIntervalSeconds * 1000).round().clamp(
+                    5000, 120000)),
+            (_) => _captureGlimpse(),
+          );
+          _captureGlimpse();
         }
       case StateChanged(:final phase):
         state = state.copyWith(phase: phase);
@@ -240,9 +271,7 @@ class CompanionController extends StateNotifier<CompanionState> {
           _avatar.playGesture(gesture,
               duration: const Duration(milliseconds: 3200));
         }
-        if (_ttsOn) {
-          _voice.speak(text); // isSpeaking transitions report tts.state
-        } else {
+        if (!_ttsOn) {
           // Nothing will play: tell the server immediately so it doesn't
           // wait for a TTS that never starts.
           _client?.sendTtsState(playing: false);
@@ -250,14 +279,75 @@ class CompanionController extends StateNotifier<CompanionState> {
             Future.delayed(const Duration(milliseconds: 600),
                 _armDeviceListening);
           }
+        } else if (_serverTts) {
+          // Her neural voice is on its way over the socket; hold for it,
+          // but never go mute if it doesn't arrive.
+          _pendingSayText = text;
+          _audioWatchdog?.cancel();
+          _audioWatchdog = Timer(const Duration(seconds: 5), () {
+            if (_pendingSayText.isNotEmpty) {
+              final fallback = _pendingSayText;
+              _pendingSayText = '';
+              _voice.speak(fallback);
+            }
+          });
+        } else {
+          _voice.speak(text); // isSpeaking transitions report tts.state
+        }
+      case AssistantAudio(:final audio):
+        _audioWatchdog?.cancel();
+        final text = _pendingSayText;
+        _pendingSayText = '';
+        if (audio == null) {
+          // Server synthesis failed for this line — device TTS fallback.
+          if (text.isNotEmpty) _voice.speak(text);
+        } else {
+          _playServerVoice(audio);
         }
       case TtsInterrupt():
         _voice.stopSpeaking();
+        _serverVoice?.stop();
       case ServerError(:final message):
         AppLogger.w('Backend error: $message', tag: 'Companion');
       case Pong():
         break;
     }
+  }
+
+  // ------------------------------------------------------------------ //
+  // Her neural voice (server TTS) + situational sight
+  // ------------------------------------------------------------------ //
+  Future<void> _playServerVoice(Uint8List mp3) async {
+    _serverVoice ??= ServerVoicePlayer();
+    _speakPulse?.cancel();
+    final ok = await _serverVoice!.play(mp3, onComplete: () {
+      _speakPulse?.cancel();
+      _client?.sendTtsState(playing: false);
+      if (mounted) _avatar.idle();
+    });
+    if (!ok) {
+      _client?.sendTtsState(playing: false);
+      return;
+    }
+    _client?.sendTtsState(playing: true);
+    _avatar.setActivity(AvatarActivity.speaking);
+    // No amplitude feed from the player — pulse a natural cadence so her
+    // lips move with the voice (same trick the device-TTS path uses).
+    _speakPulse = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      _avatar.setAmplitude(0.3 + _rng.nextDouble() * 0.6);
+    });
+  }
+
+  void _captureGlimpse() {
+    if (!_running ||
+        !_foreground ||
+        state.micMuted ||
+        state.connection != RealtimeStatus.connected) {
+      return;
+    }
+    _ref.read(visionControllerProvider.notifier).requestFrame((jpeg) {
+      _client?.sendVisionFrame(jpeg);
+    });
   }
 
   // ------------------------------------------------------------------ //

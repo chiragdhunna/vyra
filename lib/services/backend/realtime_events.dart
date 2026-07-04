@@ -6,6 +6,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 /// What Vyra's brain is doing right now (server-driven).
 enum CompanionPhase { connecting, listening, thinking, speaking, idle, offline }
@@ -37,6 +38,10 @@ sealed class RealtimeEvent {
           provider: (map['provider'] as String?) ?? '?',
           model: (map['model'] as String?) ?? '?',
           serverStt: map['stt'] == 'server',
+          serverTts: map['tts'] == 'server',
+          visionFrames: (map['vision_frames'] as bool?) ?? false,
+          frameIntervalSeconds:
+              (map['vision_frame_interval'] as num?)?.toDouble() ?? 20.0,
         );
       case 'state':
         return StateChanged(phaseFromWire((map['value'] as String?) ?? ''));
@@ -49,6 +54,14 @@ sealed class RealtimeEvent {
           emotion: (map['emotion'] as String?) ?? 'neutral',
           proactive: (map['proactive'] as bool?) ?? false,
           gesture: (map['gesture'] as String?) ?? '',
+        );
+      case 'assistant.audio':
+        return AssistantAudio(
+          id: (map['id'] as num?)?.toInt() ?? 0,
+          audio: (map['audio_b64'] as String?) is String &&
+                  (map['audio_b64'] as String).isNotEmpty
+              ? base64Decode(map['audio_b64'] as String)
+              : null,
         );
       case 'tts.interrupt':
         return TtsInterrupt((map['id'] as num?)?.toInt() ?? 0);
@@ -66,10 +79,21 @@ class SessionReady extends RealtimeEvent {
   final String provider;
   final String model;
   final bool serverStt;
+
+  /// Her voice is synthesized on the backend (neural) vs device TTS.
+  final bool serverTts;
+
+  /// The backend has a vision LLM: send periodic frame glimpses.
+  final bool visionFrames;
+  final double frameIntervalSeconds;
+
   const SessionReady({
     required this.provider,
     required this.model,
     required this.serverStt,
+    this.serverTts = false,
+    this.visionFrames = false,
+    this.frameIntervalSeconds = 20.0,
   });
 }
 
@@ -99,6 +123,14 @@ class AssistantSay extends RealtimeEvent {
     required this.proactive,
     this.gesture = '',
   });
+}
+
+/// Her synthesized voice for one say-id. [audio] == null means synthesis
+/// failed server-side — play the line with device TTS instead.
+class AssistantAudio extends RealtimeEvent {
+  final int id;
+  final Uint8List? audio;
+  const AssistantAudio({required this.id, this.audio});
 }
 
 class TtsInterrupt extends RealtimeEvent {
@@ -141,6 +173,11 @@ abstract final class ClientEvents {
         'present': present,
         'smiling': smiling,
         'eyes_open': double.parse(eyesOpen.toStringAsFixed(2)),
+      });
+
+  static String visionFrame(Uint8List jpeg) => jsonEncode({
+        'type': 'vision.frame',
+        'jpeg_b64': base64Encode(jpeg),
       });
 
   static String userText(String text) =>
