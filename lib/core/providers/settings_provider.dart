@@ -12,6 +12,10 @@ class AppSettings {
   final bool ttsEnabled;
   final bool voiceEnabled;
   final double speechRate;
+  final String avatarStyle; // 'anime' | 'orb'
+  final String voiceName; // '' = engine default
+  final String voiceLocale;
+  final double voicePitch;
 
   const AppSettings({
     required this.themeMode,
@@ -19,7 +23,13 @@ class AppSettings {
     required this.ttsEnabled,
     required this.voiceEnabled,
     required this.speechRate,
+    this.avatarStyle = 'anime',
+    this.voiceName = '',
+    this.voiceLocale = '',
+    this.voicePitch = 1.25,
   });
+
+  bool get animeAvatar => avatarStyle == 'anime';
 
   AppSettings copyWith({
     ThemeMode? themeMode,
@@ -27,6 +37,10 @@ class AppSettings {
     bool? ttsEnabled,
     bool? voiceEnabled,
     double? speechRate,
+    String? avatarStyle,
+    String? voiceName,
+    String? voiceLocale,
+    double? voicePitch,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -34,6 +48,10 @@ class AppSettings {
       ttsEnabled: ttsEnabled ?? this.ttsEnabled,
       voiceEnabled: voiceEnabled ?? this.voiceEnabled,
       speechRate: speechRate ?? this.speechRate,
+      avatarStyle: avatarStyle ?? this.avatarStyle,
+      voiceName: voiceName ?? this.voiceName,
+      voiceLocale: voiceLocale ?? this.voiceLocale,
+      voicePitch: voicePitch ?? this.voicePitch,
     );
   }
 }
@@ -51,6 +69,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         ttsEnabled: s.ttsEnabled,
         voiceEnabled: s.voiceEnabled,
         speechRate: s.speechRate,
+        avatarStyle: s.avatarStyle,
+        voiceName: s.voiceName,
+        voiceLocale: s.voiceLocale,
+        voicePitch: s.voicePitch,
       );
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -76,6 +98,21 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   Future<void> setSpeechRate(double value) async {
     await _storage.setSpeechRate(value);
     state = state.copyWith(speechRate: value);
+  }
+
+  Future<void> setAvatarStyle(String style) async {
+    await _storage.setAvatarStyle(style);
+    state = state.copyWith(avatarStyle: style);
+  }
+
+  Future<void> setVoice(String name, String locale) async {
+    await _storage.setVoice(name, locale);
+    state = state.copyWith(voiceName: name, voiceLocale: locale);
+  }
+
+  Future<void> setVoicePitch(double value) async {
+    await _storage.setVoicePitch(value);
+    state = state.copyWith(voicePitch: value);
   }
 }
 

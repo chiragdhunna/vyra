@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
@@ -7,6 +9,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import '../../../core/utils/app_logger.dart';
 import '../../../services/vision/face_detection_service.dart';
+import '../../../services/vision/frame_encoder.dart';
 import '../../avatar/models/avatar_emotion.dart';
 import '../../avatar/providers/avatar_provider.dart';
 
@@ -21,6 +24,10 @@ class VisionState {
   final String? error;
   final int faceCount;
   final double smileProbability;
+
+  /// 0..1 how open the eyes look (1 = wide awake). Drives Vyra's
+  /// "you look tired" awareness on the backend.
+  final double eyesOpen;
   final List<Rect> faceRects;
   final Size imageSize;
   final InputImageRotation rotation;
@@ -33,6 +40,7 @@ class VisionState {
     this.error,
     this.faceCount = 0,
     this.smileProbability = 0,
+    this.eyesOpen = 1.0,
     this.faceRects = const [],
     this.imageSize = Size.zero,
     this.rotation = InputImageRotation.rotation0deg,
@@ -46,6 +54,7 @@ class VisionState {
     String? error,
     int? faceCount,
     double? smileProbability,
+    double? eyesOpen,
     List<Rect>? faceRects,
     Size? imageSize,
     InputImageRotation? rotation,
@@ -59,6 +68,7 @@ class VisionState {
         error: clearError ? null : (error ?? this.error),
         faceCount: faceCount ?? this.faceCount,
         smileProbability: smileProbability ?? this.smileProbability,
+        eyesOpen: eyesOpen ?? this.eyesOpen,
         faceRects: faceRects ?? this.faceRects,
         imageSize: imageSize ?? this.imageSize,
         rotation: rotation ?? this.rotation,
@@ -75,6 +85,7 @@ class VisionController extends StateNotifier<VisionState> {
   final Ref _ref;
   CameraController? _camera;
   bool _busy = false;
+  void Function(Uint8List jpeg)? _frameRequest;
   CameraLensDirection _lens = CameraLensDirection.front;
   AvatarEmotion _lastEmotion = AvatarEmotion.neutral;
 
@@ -150,10 +161,23 @@ class VisionController extends StateNotifier<VisionState> {
     }
   }
 
+  /// One-shot frame grab: the NEXT camera frame is downscaled to a small
+  /// JPEG and handed to [onJpeg] (used for the backend's vision glimpse).
+  /// Zero steady-state cost — nothing is copied unless requested.
+  void requestFrame(void Function(Uint8List jpeg) onJpeg) {
+    _frameRequest = onJpeg;
+  }
+
   Future<void> _process(CameraImage image) async {
     if (_busy || !mounted || _camera == null) return;
     _busy = true;
     try {
+      final frameRequest = _frameRequest;
+      if (frameRequest != null) {
+        _frameRequest = null;
+        final jpeg = encodeCameraFrame(image);
+        if (jpeg != null) frameRequest(jpeg);
+      }
       final input =
           _service.inputImageFromCamera(image, _camera!, _camera!.description);
       if (input == null) return;
@@ -161,13 +185,21 @@ class VisionController extends StateNotifier<VisionState> {
       if (!mounted) return;
 
       var smile = 0.0;
+      var eyes = 1.0;
       for (final f in faces) {
         final p = f.smilingProbability ?? 0;
         if (p > smile) smile = p;
+        final left = f.leftEyeOpenProbability;
+        final right = f.rightEyeOpenProbability;
+        if (left != null && right != null) {
+          eyes = math.min(eyes, (left + right) / 2);
+        }
       }
+      if (faces.isEmpty) eyes = 1.0;
       state = state.copyWith(
         faceCount: faces.length,
         smileProbability: smile,
+        eyesOpen: eyes,
         faceRects: faces.map((f) => f.boundingBox).toList(),
         imageSize: input.metadata?.size ?? state.imageSize,
         rotation: input.metadata?.rotation ?? state.rotation,

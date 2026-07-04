@@ -3,21 +3,16 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../../core/config/env.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/app_logger.dart';
+import 'ai_engine.dart';
 
-/// A parsed reply from Gemini: the user-facing [text] with the hidden
-/// `[emotion: X]` tag stripped out, plus the [emotion] name for the avatar.
-class GeminiReply {
-  final String text;
-  final String emotion;
-  final bool isError;
+/// Legacy alias — replies are now the engine-agnostic [AiReply].
+typedef GeminiReply = AiReply;
 
-  const GeminiReply(this.text, this.emotion, {this.isError = false});
-}
-
-/// Vyra's AI engine, powered by Google Gemini (replaces OpenAI GPT from the
-/// original spec). Keeps a single multi-turn [ChatSession] so context carries
-/// across the conversation, and degrades gracefully when no API key is set.
-class GeminiService {
+/// Vyra's standalone AI engine, powered by Google Gemini directly from the
+/// phone (used when no vyra-backend is configured). Keeps a single
+/// multi-turn [ChatSession] so context carries across the conversation, and
+/// degrades gracefully when no API key is set.
+class GeminiService implements AiEngine {
   GeminiService._();
   static final GeminiService instance = GeminiService._();
 
@@ -27,7 +22,11 @@ class GeminiService {
   static final RegExp _emotionTag =
       RegExp(r'\[emotion:\s*([a-zA-Z]+)\s*\]', caseSensitive: false);
 
+  @override
   bool get isConfigured => Env.hasGeminiKey;
+
+  @override
+  String get label => 'Gemini (on-device key)';
 
   GenerativeModel _buildModel() => GenerativeModel(
         model: Env.geminiModel,
@@ -48,6 +47,7 @@ class GeminiService {
 
   /// Rebuilds the chat session seeded with prior history so context survives an
   /// app restart. [history] is oldest-first.
+  @override
   void seedHistory(List<({bool isUser, String text})> history) {
     if (!Env.hasGeminiKey) return;
     _model ??= _buildModel();
@@ -63,9 +63,10 @@ class GeminiService {
   }
 
   /// Sends a user message and returns Vyra's parsed reply.
-  Future<GeminiReply> send(String message) async {
+  @override
+  Future<AiReply> send(String message) async {
     if (!Env.hasGeminiKey) {
-      return const GeminiReply(
+      return const AiReply(
         "I'd love to chat! I just need a Gemini API key to think with. "
         "Pop your key into the .env file as GEMINI_API_KEY and restart me. 💜",
         'caring',
@@ -77,7 +78,7 @@ class GeminiService {
       final response = await _chat!.sendMessage(Content.text(message));
       final raw = response.text ?? '';
       if (raw.trim().isEmpty) {
-        return const GeminiReply(
+        return const AiReply(
           "I went quiet there for a second — could you say that again?",
           'thinking',
         );
@@ -85,7 +86,7 @@ class GeminiService {
       return _parse(raw);
     } catch (e, st) {
       AppLogger.e('Gemini request failed', error: e, stackTrace: st, tag: 'Gemini');
-      return const GeminiReply(
+      return const AiReply(
         "Hmm, I couldn't reach my brain just now. Mind trying again in a moment?",
         'sad',
         isError: true,
@@ -93,14 +94,15 @@ class GeminiService {
     }
   }
 
-  GeminiReply _parse(String raw) {
+  AiReply _parse(String raw) {
     final match = _emotionTag.firstMatch(raw);
     final emotion = match?.group(1)?.toLowerCase() ?? 'neutral';
     final text = raw.replaceAll(_emotionTag, '').trim();
-    return GeminiReply(text.isEmpty ? '…' : text, emotion);
+    return AiReply(text.isEmpty ? '…' : text, emotion);
   }
 
   /// Clears the conversation context (used by "clear chat").
+  @override
   void resetSession() {
     _chat = _model?.startChat();
   }

@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/env.dart';
+import '../../../services/ai/ai_engine.dart';
+import '../../../services/ai/backend_ai_service.dart';
 import '../../../services/ai/gemini_service.dart';
 import '../../../services/service_providers.dart';
 import '../../avatar/models/avatar_emotion.dart';
@@ -13,6 +16,15 @@ import '../data/models/chat_message.dart';
 
 final geminiServiceProvider =
     Provider<GeminiService>((ref) => GeminiService.instance);
+
+/// Vyra's active brain. With VYRA_BACKEND_URL set, chat routes through the
+/// vyra-backend on your LAN (which picks Ollama or a cloud model from ITS
+/// .env); otherwise the original direct-Gemini mode is used.
+final aiEngineProvider = Provider<AiEngine>(
+  (ref) => Env.hasBackend
+      ? BackendAiService()
+      : ref.read(geminiServiceProvider),
+);
 
 @immutable
 class ChatState {
@@ -68,7 +80,7 @@ class ChatController extends StateNotifier<ChatState> {
   static const int _maxConversations = 40;
   static const int _maxMessagesStored = 200;
 
-  GeminiService get _gemini => _ref.read(geminiServiceProvider);
+  AiEngine get _ai => _ref.read(aiEngineProvider);
   AvatarController get _avatar => _ref.read(avatarControllerProvider.notifier);
 
   void _restore() {
@@ -124,13 +136,13 @@ class ChatController extends StateNotifier<ChatState> {
       conversations: [convo, ...state.conversations],
       activeId: convo.id,
     );
-    _gemini.resetSession();
+    _ai.resetSession();
     _avatar.react(AvatarEmotion.happy);
     if (persist) _persist();
   }
 
   void _seedGeminiFromActive() {
-    _gemini.seedHistory([
+    _ai.seedHistory([
       for (final m in state.messages) (isUser: m.isUser, text: m.text),
     ]);
   }
@@ -164,7 +176,7 @@ class ChatController extends StateNotifier<ChatState> {
     _avatar.setActivity(AvatarActivity.thinking);
     _persist();
 
-    final reply = await _gemini.send(trimmed);
+    final reply = await _ai.send(trimmed);
     final emotion = AvatarEmotion.fromTag(reply.emotion);
     final vyraMsg = ChatMessage.vyra(
       reply.text,
@@ -192,7 +204,7 @@ class ChatController extends StateNotifier<ChatState> {
     if (!state.conversations.any((c) => c.id == id)) return;
     state = state.copyWith(activeId: id);
     _ref.read(storageServiceProvider).chatBox.put(_activeKey, id);
-    _gemini.resetSession();
+    _ai.resetSession();
     _seedGeminiFromActive();
     // Reflect that conversation's last mood on the avatar.
     final msgs = state.messages;
@@ -216,7 +228,7 @@ class ChatController extends StateNotifier<ChatState> {
     );
     _persist();
     if (wasActive) {
-      _gemini.resetSession();
+      _ai.resetSession();
       _seedGeminiFromActive();
     }
   }
@@ -228,7 +240,7 @@ class ChatController extends StateNotifier<ChatState> {
     box.delete(_activeKey);
     box.delete(_legacyKey);
     state = const ChatState();
-    _gemini.resetSession();
+    _ai.resetSession();
     _avatar.react(AvatarEmotion.neutral, activity: AvatarActivity.idle);
     _startFresh(persist: true);
   }
