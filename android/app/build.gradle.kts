@@ -10,7 +10,10 @@ plugins {
 
 android {
     namespace = "com.example.vyra"
-    compileSdk = flutter.compileSdkVersion
+    // flutter.compileSdkVersion is 35 on Flutter 3.29, but flutter_tts now
+    // compiles against SDK 36 (backward compatible; the CI build log asks
+    // for exactly this bump).
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
