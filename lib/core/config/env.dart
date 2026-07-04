@@ -27,6 +27,30 @@ class Env {
       _get('GEMINI_MODEL', fallback: 'gemini-2.5-flash');
   static bool get hasGeminiKey => geminiApiKey.isNotEmpty;
 
+  // --- vyra-backend (optional companion brain) ---
+  // e.g. http://192.168.1.42:8000 — the machine running vyra-backend on the
+  // same Wi-Fi. When set, chat + the companion screen route through it
+  // (Ollama or cloud, chosen by the BACKEND's .env) instead of calling
+  // Gemini directly from the phone.
+  static String get backendUrl {
+    final raw = _get('VYRA_BACKEND_URL');
+    if (raw.isEmpty) return '';
+    return raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
+  }
+
+  /// Shared secret matching VYRA_API_KEY on the backend (optional).
+  static String get backendApiKey => _get('VYRA_BACKEND_API_KEY');
+  static bool get hasBackend => backendUrl.isNotEmpty;
+
+  /// ws:// (or wss://) form of [backendUrl] for the realtime socket.
+  static String get backendWsUrl {
+    final url = backendUrl;
+    if (url.isEmpty) return '';
+    if (url.startsWith('https://')) return 'wss://${url.substring(8)}';
+    if (url.startsWith('http://')) return 'ws://${url.substring(7)}';
+    return url;
+  }
+
   // --- Weather ---
   static String get openWeatherApiKey => _get('OPENWEATHER_API_KEY');
   static bool get hasWeatherKey => openWeatherApiKey.isNotEmpty;
