@@ -22,7 +22,7 @@
 ## 📸 Meet Vyra
 
 <p align="center">
-  <img src="assets/readme/hero.webp" alt="Vyra — anime companion" width="300"/>
+  <img src="assets/readme/hero.svg" alt="Vyra — anime companion" width="300"/>
 </p>
 
 <p align="center"><em>She sits with you, blinks, breathes, talks — and her whole expression follows the conversation.</em></p>
@@ -33,11 +33,11 @@
 
 | 🙂 neutral | 😊 happy | 🤩 excited |
 |:---:|:---:|:---:|
-| <img src="assets/readme/emotion_neutral.webp" width="170"/> | <img src="assets/readme/emotion_happy.webp" width="170"/> | <img src="assets/readme/emotion_excited.webp" width="170"/> |
+| <img src="assets/readme/emotion_neutral.svg" width="170"/> | <img src="assets/readme/emotion_happy.svg" width="170"/> | <img src="assets/readme/emotion_excited.svg" width="170"/> |
 | **🤔 thinking** | **😔 sad** | **😮 surprised** |
-| <img src="assets/readme/emotion_thinking.webp" width="170"/> | <img src="assets/readme/emotion_sad.webp" width="170"/> | <img src="assets/readme/emotion_surprised.webp" width="170"/> |
+| <img src="assets/readme/emotion_thinking.svg" width="170"/> | <img src="assets/readme/emotion_sad.svg" width="170"/> | <img src="assets/readme/emotion_surprised.svg" width="170"/> |
 | **🥰 caring** | **😭 cry** | **😠 angry** |
-| <img src="assets/readme/emotion_caring.webp" width="170"/> | <img src="assets/readme/emotion_cry.webp" width="170"/> | <img src="assets/readme/emotion_angry.webp" width="170"/> |
+| <img src="assets/readme/emotion_caring.svg" width="170"/> | <img src="assets/readme/emotion_cry.svg" width="170"/> | <img src="assets/readme/emotion_angry.svg" width="170"/> |
 
 </div>
 
@@ -47,7 +47,7 @@
 
 | 👋 wave | 😂 laugh | 🥱 stretch | 👀 lean in | 🗣️ talking |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="assets/readme/gesture_wave.webp" width="130"/> | <img src="assets/readme/gesture_laugh.webp" width="130"/> | <img src="assets/readme/gesture_stretch.webp" width="130"/> | <img src="assets/readme/gesture_lean.webp" width="130"/> | <img src="assets/readme/talk_talk.webp" width="130"/> |
+| <img src="assets/readme/gesture_wave.svg" width="130"/> | <img src="assets/readme/gesture_laugh.svg" width="130"/> | <img src="assets/readme/gesture_stretch.svg" width="130"/> | <img src="assets/readme/gesture_lean.svg" width="130"/> | <img src="assets/readme/talk_talk.svg" width="130"/> |
 
 </div>
 
