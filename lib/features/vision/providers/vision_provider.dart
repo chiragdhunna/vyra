@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
@@ -21,6 +22,10 @@ class VisionState {
   final String? error;
   final int faceCount;
   final double smileProbability;
+
+  /// 0..1 how open the eyes look (1 = wide awake). Drives Vyra's
+  /// "you look tired" awareness on the backend.
+  final double eyesOpen;
   final List<Rect> faceRects;
   final Size imageSize;
   final InputImageRotation rotation;
@@ -33,6 +38,7 @@ class VisionState {
     this.error,
     this.faceCount = 0,
     this.smileProbability = 0,
+    this.eyesOpen = 1.0,
     this.faceRects = const [],
     this.imageSize = Size.zero,
     this.rotation = InputImageRotation.rotation0deg,
@@ -46,6 +52,7 @@ class VisionState {
     String? error,
     int? faceCount,
     double? smileProbability,
+    double? eyesOpen,
     List<Rect>? faceRects,
     Size? imageSize,
     InputImageRotation? rotation,
@@ -59,6 +66,7 @@ class VisionState {
         error: clearError ? null : (error ?? this.error),
         faceCount: faceCount ?? this.faceCount,
         smileProbability: smileProbability ?? this.smileProbability,
+        eyesOpen: eyesOpen ?? this.eyesOpen,
         faceRects: faceRects ?? this.faceRects,
         imageSize: imageSize ?? this.imageSize,
         rotation: rotation ?? this.rotation,
@@ -161,13 +169,21 @@ class VisionController extends StateNotifier<VisionState> {
       if (!mounted) return;
 
       var smile = 0.0;
+      var eyes = 1.0;
       for (final f in faces) {
         final p = f.smilingProbability ?? 0;
         if (p > smile) smile = p;
+        final left = f.leftEyeOpenProbability;
+        final right = f.rightEyeOpenProbability;
+        if (left != null && right != null) {
+          eyes = math.min(eyes, (left + right) / 2);
+        }
       }
+      if (faces.isEmpty) eyes = 1.0;
       state = state.copyWith(
         faceCount: faces.length,
         smileProbability: smile,
+        eyesOpen: eyes,
         faceRects: faces.map((f) => f.boundingBox).toList(),
         imageSize: input.metadata?.size ?? state.imageSize,
         rotation: input.metadata?.rotation ?? state.rotation,

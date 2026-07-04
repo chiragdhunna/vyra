@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/settings_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../avatar/assets/anime_sprites.dart';
 import '../../../avatar/presentation/widgets/anime_avatar.dart';
 import '../../../avatar/presentation/widgets/vyra_avatar.dart';
 import '../../../home/presentation/screens/home_screen.dart';
@@ -166,12 +167,15 @@ class _CompanionScreenState extends ConsumerState<CompanionScreen>
     final companion = ref.watch(companionControllerProvider);
 
     return Scaffold(
+      // Painted with the sprites' exact background color so the frames blend
+      // seamlessly — no card, no edges, only her.
+      backgroundColor: AnimeSprites.background,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: _toggleMute,
         onLongPress: _openOptions,
         child: Container(
-          decoration: BoxDecoration(gradient: AppColors.backgroundGradient),
+          color: AnimeSprites.background,
           child: SafeArea(
             child: Stack(
               alignment: Alignment.center,

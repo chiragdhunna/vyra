@@ -89,6 +89,7 @@ class CompanionController extends StateNotifier<CompanionState> {
   bool _foreground = true;
   bool _lastPresent = false;
   bool _lastSmiling = false;
+  double _lastEyesOpen = 1.0;
   bool _spokeOnce = false;
   int _nudges = 0;
   DateTime _lastInteraction = DateTime.now();
@@ -230,11 +231,15 @@ class CompanionController extends StateNotifier<CompanionState> {
       case UserFinal(:final text):
         _lastInteraction = DateTime.now();
         state = state.copyWith(caption: 'You: $text');
-      case AssistantSay(:final text, :final emotion):
+      case AssistantSay(:final text, :final emotion, :final gesture):
         _lastInteraction = DateTime.now();
         _spokeOnce = true;
         state = state.copyWith(caption: text);
         _avatar.react(AvatarEmotion.fromTag(emotion));
+        if (gesture.isNotEmpty) {
+          _avatar.playGesture(gesture,
+              duration: const Duration(milliseconds: 3200));
+        }
         if (_ttsOn) {
           _voice.speak(text); // isSpeaking transitions report tts.state
         } else {
@@ -376,10 +381,14 @@ class CompanionController extends StateNotifier<CompanionState> {
     final smiling = next.smileProbability > 0.6;
 
     if (state.backendMode) {
-      if (present != _lastPresent || smiling != _lastSmiling) {
+      final eyes = next.eyesOpen;
+      final eyesChanged = (eyes - _lastEyesOpen).abs() > 0.15;
+      if (present != _lastPresent || smiling != _lastSmiling || eyesChanged) {
         _lastPresent = present;
         _lastSmiling = smiling;
-        _client?.sendVision(present: present, smiling: smiling);
+        _lastEyesOpen = eyes;
+        _client?.sendVision(
+            present: present, smiling: smiling, eyesOpen: eyes);
       }
       return;
     }

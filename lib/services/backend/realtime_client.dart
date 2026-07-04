@@ -140,8 +140,13 @@ class RealtimeClient {
     } catch (_) {}
   }
 
-  void sendVision({required bool present, required bool smiling}) =>
-      _send(ClientEvents.visionState(present: present, smiling: smiling));
+  void sendVision({
+    required bool present,
+    required bool smiling,
+    double eyesOpen = 1.0,
+  }) =>
+      _send(ClientEvents.visionState(
+          present: present, smiling: smiling, eyesOpen: eyesOpen));
 
   void sendUserText(String text) => _send(ClientEvents.userText(text));
 

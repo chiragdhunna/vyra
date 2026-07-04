@@ -32,6 +32,19 @@ void main() {
       expect(
           AnimeSprites.bytesFor('happy', 'moonwalk').length, greaterThan(0));
     });
+
+    test('gesture poses decode, with talk fallback', () {
+      for (final g in ['wave', 'laugh', 'stretch', 'lean']) {
+        expect(AnimeSprites.hasGesture(g), isTrue);
+        final idle = AnimeSprites.gestureBytesFor(g)!;
+        expect(idle.length, greaterThan(5000));
+        expect(String.fromCharCodes(idle.sublist(8, 12)), 'WEBP');
+        // talking falls back to idle when no dedicated talk frame exists
+        expect(AnimeSprites.gestureBytesFor(g, talking: true), isNotNull);
+      }
+      expect(AnimeSprites.hasGesture('backflip'), isFalse);
+      expect(AnimeSprites.gestureBytesFor('backflip'), isNull);
+    });
   });
 
   group('TtsService.pickFemale', () {
@@ -97,10 +110,22 @@ void main() {
         'text': 'Hey you!',
         'emotion': 'happy',
         'proactive': true,
+        'gesture': 'wave',
       }));
       expect(say, isA<AssistantSay>());
       expect((say as AssistantSay).proactive, isTrue);
       expect(say.emotion, 'happy');
+      expect(say.gesture, 'wave');
+
+      // gesture is optional — old servers omit it
+      final plainSay = RealtimeEvent.decode(jsonEncode({
+        'type': 'assistant.say',
+        'id': 4,
+        'text': 'Hi',
+        'emotion': 'neutral',
+        'proactive': false,
+      }));
+      expect((plainSay as AssistantSay).gesture, '');
 
       expect(
         RealtimeEvent.decode(

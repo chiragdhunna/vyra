@@ -48,6 +48,7 @@ sealed class RealtimeEvent {
           text: (map['text'] as String?) ?? '',
           emotion: (map['emotion'] as String?) ?? 'neutral',
           proactive: (map['proactive'] as bool?) ?? false,
+          gesture: (map['gesture'] as String?) ?? '',
         );
       case 'tts.interrupt':
         return TtsInterrupt((map['id'] as num?)?.toInt() ?? 0);
@@ -87,11 +88,16 @@ class AssistantSay extends RealtimeEvent {
   final String text;
   final String emotion;
   final bool proactive;
+
+  /// Optional pose the avatar should play with this line (wave, laugh, …).
+  final String gesture;
+
   const AssistantSay({
     required this.id,
     required this.text,
     required this.emotion,
     required this.proactive,
+    this.gesture = '',
   });
 }
 
@@ -125,8 +131,17 @@ abstract final class ClientEvents {
         'client_stt': clientStt,
       });
 
-  static String visionState({required bool present, required bool smiling}) =>
-      jsonEncode({'type': 'vision.state', 'present': present, 'smiling': smiling});
+  static String visionState({
+    required bool present,
+    required bool smiling,
+    double eyesOpen = 1.0,
+  }) =>
+      jsonEncode({
+        'type': 'vision.state',
+        'present': present,
+        'smiling': smiling,
+        'eyes_open': double.parse(eyesOpen.toStringAsFixed(2)),
+      });
 
   static String userText(String text) =>
       jsonEncode({'type': 'user.text', 'text': text});
